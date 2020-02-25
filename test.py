@@ -1,19 +1,19 @@
 from pydub import AudioSegment
 import librosa
 import datawork
-import models
-import numpy as np
 
-audio = AudioSegment.from_wav("../songs_for_training/wav/Another Girl.wav")
+
+y, sr = librosa.load("../songs_for_training/wav/Another Girl.wav")
+print(y, sr)
+y, index = librosa.effects.trim(y)
+print(y, sr)
+librosa.output.write_wav("audioFile.wav", y, sr)
+bpm = datawork.get_bpm("audioFile.wav")
+audio = AudioSegment.from_wav("audioFile.wav")
+
 
 start = 0
-chromaSize = librosa.frames_to_time(5-1)
-test = []
-while (start < 30):
-    test.append(datawork.get_chromagram_from_audio(audio, start, start+chromaSize))
-    start += chromaSize
-testArr = np.array(test)
-# test_r = datawork.reduceAll(test.reshape(1, test.shape[0], test.shape[1]), 5)
-test_denoised = models.denoise("models/denoise.h5", testArr)
-result = test_denoised.reshape(test_denoised.shape[1], test_denoised.shape[2] * test_denoised.shape[0])
-datawork.print_chromagram(result, "whole song")
+end = 60/bpm[5] * 10
+print(end)
+segment1 = audio[start :end * 1000]
+segment1.export("segment1.wav", format="wav")

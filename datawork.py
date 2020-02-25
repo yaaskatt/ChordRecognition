@@ -95,7 +95,7 @@ def get_categorical(chords, int_from_chords_dict_path):
     return categ
 
 
-# Преобразовать категорический массив к в желаемый вид
+# Преобразовать категорический массив в желаемый вид
 def get_noncategorical(categ, chords_from_int_dict_path):
     int_to_chords = get(chords_from_int_dict_path)
     noncateg, confidence = [], []
@@ -114,6 +114,13 @@ def get_chromagram_from_audio(audio, start, end):
     chromagram = get_chromagram(temp_segment_path)
     os.remove(temp_segment_path)
     return chromagram
+
+def get_bpm(audioPath):
+    y, sr = librosa.load(audioPath)
+    onset_env = librosa.onset.onset_strength(y, sr=sr)
+    dtempo = librosa.beat.tempo(onset_envelope=onset_env, sr=sr, aggregate=None)
+    print(dtempo)
+    return dtempo
 
 
 # Чтение данных из датасетов
