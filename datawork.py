@@ -1,21 +1,21 @@
-import pandas as pd
-from pydub import AudioSegment
 import matplotlib.pyplot as plt
 import numpy as np
 from keras.utils import to_categorical
 import librosa
 from librosa import display
-import pickle
 import os
 from sklearn.decomposition import PCA
+from paths import Path
+import pickle
 
 
 # Нормализация матрицы
 def normalize(matrix):
     min = matrix.min()
     max = matrix.max()
-    for i in range(len(matrix)):
-        matrix[i] = (matrix[i] - min) / (max - min)
+    if min != 0 and max != 0:
+        for i in range(len(matrix)):
+            matrix[i] = (matrix[i] - min) / (max - min)
     return matrix
 
 
@@ -28,6 +28,19 @@ def read_matrix(filename):
         matrix = np.vstack([matrix, new_row])
     return matrix
 
+# Сохранение объекта при помощи pickle
+def save(obj, path):
+    if not os.path.exists(os.path.dirname(path)):
+        os.makedirs((os.path.dirname(path)))
+
+    with open(path, 'wb') as f:
+        pickle.dump(obj, f)
+
+
+# Открытие объекта при помощи pickle
+def get(path):
+    with open(path, 'rb') as f:
+        return pickle.load(f)
 
 # Увеличение размерности эталонных хромаграмм до размерности обрабатываемых
 def widenAll(chromaRefs, columns_new):
@@ -53,22 +66,6 @@ def print_chromagram(chromagram):
     plt.figure(figsize=(20, 5))
     display.specshow(chromagram, x_axis='time', y_axis='chroma', cmap='coolwarm')
     plt.show()
-
-
-# Сохранение объекта при помощи pickle
-def save(obj, path):
-    if not os.path.exists(os.path.dirname(path)):
-        os.makedirs((os.path.dirname(path)))
-
-    with open(path, 'wb') as f:
-        pickle.dump(obj, f)
-
-
-# Открытие объекта при помощи pickle
-def get(path):
-    with open(path, 'rb') as f:
-        return pickle.load(f)
-
 
 # Уменьшение размерности хромаграмм до нужного значения
 def reduceAll(x, n_components):
@@ -96,12 +93,12 @@ def get_categorical(chords, int_from_chords_dict_path):
 
 
 # Преобразовать категорический массив в желаемый вид
-def get_noncategorical(categ, chords_from_int_dict_path):
-    int_to_chords = get(chords_from_int_dict_path)
+def get_noncategorical(categ):
+    intToChord_dict = get(Path.Pickle.intToChord_dict)
     noncateg, confidence = [], []
     for array in categ:
         num = np.argmax(array)
-        noncateg.append(int_to_chords[num])
+        noncateg.append(intToChord_dict[num])
         confidence.append(max(array))
     return noncateg, confidence
 
@@ -115,40 +112,15 @@ def get_chromagram_from_audio(audio, start, end):
     os.remove(temp_segment_path)
     return chromagram
 
-def get_bpm(audioPath):
+def get_beats(audioPath):
     y, sr = librosa.load(audioPath)
-    onset_env = librosa.onset.onset_strength(y, sr=sr)
-    dtempo = librosa.beat.tempo(onset_envelope=onset_env, sr=sr, aggregate=None)
-    print(dtempo)
-    return dtempo
-
-
-# Чтение данных из датасетов
-def read_data_to_chroma_set(songsSet, audioDir, chordsDir, refsDir, dict_noteMapPath, allDataPath):
-
-    dict_noteMap = get(dict_noteMapPath)
-    songs = pd.read_csv(songsSet, sep=";", encoding="UTF-8")
-    chromas, chromaRefs, chords = [], [], []
-
-    for i in range(songs.shape[0]):
-        audiofile, chords_file = songs.iloc[i]
-        chordSet = pd.read_csv(chordsDir + chords_file, sep=";", encoding="UTF-8", keep_default_na=False)
-        audio = AudioSegment.from_wav(audioDir + audiofile)
-
-        for j in range(chordSet.shape[0]):
-            start, end, root, type = chordSet.iloc[j]
-
-            if j == chordSet.shape[0] - 1:
-                end = audio.duration_seconds
-            if root == "N":
-                continue
-            # Замена нот с диезом на ноты с бемолем
-            if root in dict_noteMap:
-                root = dict_noteMap[root]
-
-            print(audiofile)
-            chromas.append(get_chromagram_from_audio(audio, start, end))
-            chromaRefs.append(get(refsDir + root + "/" + root + type + ".pickle"))
-            chords.append(root + type)
-    save((chromas, np.array(chromaRefs), np.array(chords)), allDataPath)
+    tempo, beats_frames = librosa.beat.beat_track(y=y, sr=sr)
+    beats_time = []
+    if beats_frames[0] <= 5:
+        beats_frames = np.delete(beats_frames, 0)
+    for i in range(1, len(beats_frames)):
+        if not beats_frames[i] - beats_frames[i - 1] <= 5:
+            beats_time.append(librosa.frames_to_time(beats_frames[i-1], sr=sr))
+    beats_time.append(librosa.frames_to_time(beats_frames[len(beats_frames)-1], sr=sr))
+    return np.array(beats_time)
 

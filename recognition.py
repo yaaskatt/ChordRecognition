@@ -22,8 +22,9 @@ dict_toChordPath = "dict/chord_from_int.pickle"
 dict_toIntPath = "../dict/int_from_chord.pickle"
 dict_noteMapPath = "..dict/note_map"
 
-denoiserPath = "models/denoise.h5"
+denoiserPath = "models/denoiser.h5"
 classifierPath = "models/classifier.h5"
+grouperPath = "models/grouper.h5"
 reducerPath = "models/reducer.pickle"
 
 songsPath = "../songs_for_training/songs_set.csv"
@@ -39,7 +40,7 @@ if not audio_pr:
 
 # Получение ТРИАД (хромаграма - эталонная хромаграма в один столбец - аккорд) из датасета
 if not allData_read:
-    datawork.read_data_to_chroma_set(songsPath, audioDir, chordsDir, refsDir, dict_noteMapPath, allDataPath)
+    datawork.read_chords_data(songsPath, audioDir, chordsDir, refsDir, dict_noteMapPath, allDataPath)
 chromas, chroma_refs, chords = datawork.get(allDataPath)
 
 # Приведение ХРОМАГРАММ к одинаковому РАЗМЕРУ при помощи PCA
