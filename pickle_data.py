@@ -6,6 +6,7 @@ import pickle
 import os
 from paths import Dir
 from paths import Path
+import models
 
 def read_audio_data(songSet, index):
     audioFile, chordSet_file = songSet.iloc[index]
@@ -38,7 +39,8 @@ def create_beat_training_data(songSet):
             print("i =", i, "start =", start, "end =", end, end=" ")
             if i == 0:
                 print()
-            songChroma.append(datawork.get_chromagram_from_audio(audio, start, end))
+            beatChroma = datawork.get_chromagram_from_audio(audio, start, end)
+            songChroma.extend(np.split(beatChroma, beatChroma.shape[1], axis=1))
 
             if i != 0:
                 chord_start, chord_end = chordSet.iloc[j][0:2]
@@ -52,10 +54,15 @@ def create_beat_training_data(songSet):
                     else:
                         chord_changes.append(1)
                 print("same=", chord_changes[len(chord_changes) - 1])
+            for m in range(beatChroma.shape[1]-1):
+                chord_changes.append(1)
 
             start = end
-        chroma1.extend(datawork.reduceAll(songChroma[0:len(songChroma) - 1], 1))
-        chroma2.extend(datawork.reduceAll(songChroma[1:len(songChroma)], 1))
+
+        songChroma_denoised = models.denoise(np.array(songChroma))
+
+        chroma1.extend(songChroma_denoised[0:len(songChroma_denoised) - 1])
+        chroma2.extend(songChroma_denoised[1:len(songChroma_denoised)])
     datawork.save((np.array(chroma1), np.array(chroma2), np.array(chord_changes)), Path.Pickle.beats_data)
 
 

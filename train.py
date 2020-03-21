@@ -114,17 +114,17 @@ def train_grouper_model(x1, x2, y):
 
     model = Model([input1, input2], distance)
 
-    rms = RMSprop(learning_rate=0.00001)
+    rms = RMSprop()
     model.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
     model.fit([x1_train, x2_train], y_train,
-              batch_size=2000,
-              epochs=5000,
+              batch_size=2056,
+              epochs=70,
               validation_data=([x1_test, x2_test], y_test))
     model.save(Path.grouper)
 
 
-#x1_grouper, x2_grouper, y_grouper = datawork.get(Path.Pickle.beats_data)
-#train_grouper_model(x1_grouper, x2_grouper, y_grouper)
+x1_grouper, x2_grouper, y_grouper = datawork.get(Path.Pickle.beats_data)
+train_grouper_model(x1_grouper, x2_grouper, y_grouper)
 
 
 
