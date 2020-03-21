@@ -6,12 +6,12 @@ from paths import Dir, Path
 
 
 # Генерирование эталонных хромаграмм, присвоение аккордам цифр, установление соответствий между аккордами с # и b
-def create_references(refsDir, exampleDir):
+def create_references():
     note_name = np.array(['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'])
     n = 0
     dict_intToChord = {}
     dict_chordToInt = {}
-    for filename in os.listdir(exampleDir):
+    for filename in os.listdir(Dir.initialReferences):
         root = filename[0]
         type = ""
         # Если в аккорде больше одного символа
@@ -24,8 +24,8 @@ def create_references(refsDir, exampleDir):
             else:
                 type = filename[1:len(filename)-4]
 
-        chroma = datawork.read_matrix(exampleDir + filename)
-        datawork.save(chroma, refsDir + root + "/" + filename[0:len(filename) - 4] + ".pickle")
+        chroma = datawork.read_matrix(Dir.initialReferences + filename)
+        datawork.save(chroma, Dir.initialReferences + root + "/" + filename[0:len(filename) - 4] + ".pickle")
         dict_intToChord[n] = root + type
         dict_chordToInt[root + type] = n
         n += 1  # для словаря
@@ -37,7 +37,7 @@ def create_references(refsDir, exampleDir):
 
             # циклическая перестановка для создания хромаграммы каждого аккорда
             chroma = np.roll(chroma, 1, axis=0)
-            datawork.save(chroma, refsDir + note_name[i] + "/" + note_name[i] + type + ".pickle")
+            datawork.save(chroma, Dir.references + note_name[i] + "/" + note_name[i] + type + ".pickle")
             n += 1
 
     datawork.save(dict_intToChord, Path.Pickle.intToChord_dict)

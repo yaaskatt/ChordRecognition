@@ -9,6 +9,7 @@ from paths import Path
 
 def read_audio_data(songSet, index):
     audioFile, chordSet_file = songSet.iloc[index]
+    print(audioFile)
     chordSet = pd.read_csv(Dir.chordSets + chordSet_file, sep=";", encoding="UTF-8", keep_default_na=False)
     audioPath = Dir.audioSet + audioFile
     audio = AudioSegment.from_wav(audioPath)
@@ -53,20 +54,21 @@ def create_beat_training_data(songSet):
                 print("same=", chord_changes[len(chord_changes) - 1])
 
             start = end
-        chroma1.extend(datawork.reduceAll(songChroma[0:len(songChroma) - 1], 3))
-        chroma2.extend(datawork.reduceAll(songChroma[1:len(songChroma)], 3))
+        chroma1.extend(datawork.reduceAll(songChroma[0:len(songChroma) - 1], 1))
+        chroma2.extend(datawork.reduceAll(songChroma[1:len(songChroma)], 1))
     datawork.save((np.array(chroma1), np.array(chroma2), np.array(chord_changes)), Path.Pickle.beats_data)
 
 
 # Чтение данных из датасетов
-def create_chords_training_data(songs_set):
+def create_chords_training_data(songSet):
 
     noteMap_dict = datawork.get(Path.Pickle.noteMap_dict)
     chordChromas, chromaRefs, chords = [], [], []
 
-    for i in range(songs_set.shape[0]):
-        audiofile, chords_file = songs_set.iloc[i]
-        chordSet, audio = read_audio_data(songs_set, i)[0:2]
+    chordChromas_frames, chromaRefs_frames, chords_frames = [], [], []
+
+    for i in range(songSet.shape[0]):
+        chordSet, audio = read_audio_data(songSet, i)[0:2]
 
         for j in range(chordSet.shape[0]):
             start, end, root, type = chordSet.iloc[j]
@@ -79,11 +81,29 @@ def create_chords_training_data(songs_set):
             if root in noteMap_dict:
                 root = noteMap_dict[root]
 
-            print(audiofile)
-            chordChromas.append(datawork.get_chromagram_from_audio(audio, start, end))
-            chromaRefs.append(datawork.get(Dir.references + root + "/" + root + type + ".pickle"))
-            chords.append(root + type)
-    datawork.save((chordChromas, np.array(chromaRefs), np.array(chords)), Path.Pickle.chords_data)
+            frame_chromas = datawork.get_chromagram_from_audio(audio, start, end)
+            reference = np.array(datawork.get(Dir.references + root + "/" + root + type + ".pickle")).T
+            chord = root + type
+
+            chordChromas.append(frame_chromas)
+            chromaRefs.append(reference)
+            chords.append(chord)
+
+            chordChromas_frames.extend(np.split(frame_chromas, frame_chromas.shape[1], axis=1))
+
+            for i in range(frame_chromas.shape[1]):
+                chromaRefs_frames.append(reference)
+                chords_frames.append(chord)
+
+    chromaRefs_frames_np = np.array(chromaRefs_frames)
+    chromaRefs_frames_np = chromaRefs_frames_np.reshape(chromaRefs_frames_np.shape[0], chromaRefs_frames_np.shape[1], 1)
+
+    chords_frames_np = np.array(chords_frames)
+    chords_frames_np = chords_frames_np.reshape(chords_frames_np.shape[0], 1)
+
+    datawork.save((chordChromas, np.array(chromaRefs), np.array(chords),
+                   np.array(chordChromas_frames), chromaRefs_frames_np, chords_frames_np),
+                  Path.Pickle.chords_data)
 
 
 

@@ -5,40 +5,23 @@ import pandas as pd
 import numpy as np
 import pickle_data
 from paths import Path
+import prep
+import train
 import models
 
-"""""
-songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")
-chroma = []
-for k in range(1):
-    print("song №", k+1, sep="")
-    chordSet, audio, audioPath = pickle_data.read_audio_data(songSet, k)
-    beats = datawork.get_beats(audioPath)
+#prep.create_references()
+#songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")
+#pickle_data.create_chords_training_data(songSet)
 
-    start = 0
-    j = 0
-    for i in range(len(beats)):
-        if i != 0:
-            start = beats[i - 1]
-        if i != len(beats) - 1:
-            end = beats[i]
-        else:
-            end = audio.duration_seconds
-        print("i =", i, "start =", start, "end =", end)
-        chroma.append(datawork.get_chromagram_from_audio(audio, start, end))
-        start = end
+#chromas, refs = datawork.get(Path.Pickle.chords_data)[3:5]
+#train.train_denoiser_model(chromas, refs)
 
-datawork.save(chroma, Path.Pickle.beats_data)
-"""""
-chroma = datawork.get(Path.Pickle.beats_data)
-out_categ = models.classify(datawork.reduceAll(chroma, 5))
+#test_chromas = chromas[0:15]
+#test_refs = refs[0:15]
+#denoised = models.denoise(test_chromas)
 
-# Выход классификатора в виде НАЗВАНИЯ АККОРДА
-out_noncateg, confidence = datawork.get_noncategorical(out_categ)
-for i in range(len(out_noncateg)):
-    print("    Аккорд: ", out_noncateg[i],
-          "    Уверенность: ", confidence[i], sep="")
-
+x1_grouper, x2_grouper, y_grouper = datawork.get(Path.Pickle.beats_data)
+train.train_grouper_model(models.denoise(x1_grouper), models.denoise(x2_grouper), y_grouper)
 
 
 

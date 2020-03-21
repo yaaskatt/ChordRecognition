@@ -1,5 +1,5 @@
 from sklearn.model_selection import train_test_split
-from keras.layers import Dense, Input, Conv2D, Flatten, Dropout, Lambda
+from keras.layers import Dense, Input, Conv2D, Flatten, Dropout, Lambda, Reshape
 from keras.models import Model, Sequential
 from keras import backend as K
 import numpy as np
@@ -12,29 +12,27 @@ import datawork
 def autoenc(input_shape):
     # Вход
     x = Input(name='inputs', shape=input_shape, dtype='float32')
-    o = x
+    flat_x = Flatten()(x)
     # Кодировщик
-    enc = Dense(12, activation='relu', name='encoder')(o)
+    enc = Dense(input_shape[0], activation='relu', name='encoder')(flat_x)
     # Декодер
-    dec = Dense(input_shape[0], activation='sigmoid', name='decoder')(enc)
+    dec = Dense(input_shape[0] * input_shape[1], activation='sigmoid', name='decoder')(enc)
+    dec = Reshape((input_shape[0], input_shape[1], input_shape[2]))(dec)
     Model(inputs=x, outputs=dec).summary()
     return Model(inputs=x, outputs=dec)
 
 def train_denoiser_model(x, y):
-    rows, cols = x.shape[1], x.shape[2]
-    input_shape = (rows * cols,)
+    x = x.reshape(x.shape[0], x.shape[1], x.shape[2], 1)
+    y = y.reshape(y.shape[0], y.shape[1], y.shape[2], 1)
+    input_shape = (x.shape[1:])
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3)
-    x_train = x_train.reshape(x_train.shape[0], rows * cols)
-    y_train = y_train.reshape(y_train.shape[0], rows * cols)
-    x_test = x_test.reshape(x_test.shape[0], rows * cols)
-    y_test = y_test.reshape(y_test.shape[0], rows * cols)
 
-    batch_size = x_train.shape[0]
-    epochs = 1000
     model = autoenc(input_shape)
     model.compile(optimizer="adadelta", loss="binary_crossentropy", metrics=["accuracy"])
-    model.fit(x_train, y_train, epochs=epochs, batch_size=batch_size,
-                shuffle=True, validation_data=(x_test, y_test))
+    model.fit(x_train, y_train,
+              epochs=20,
+              batch_size=2056,
+              shuffle=True, validation_data=(x_test, y_test))
     model.save(Path.denoiser)
 
 
@@ -125,8 +123,8 @@ def train_grouper_model(x1, x2, y):
     model.save(Path.grouper)
 
 
-x1_grouper, x2_grouper, y_grouper = datawork.get(Path.Pickle.beats_data)
-train_grouper_model(x1_grouper, x2_grouper, y_grouper)
+#x1_grouper, x2_grouper, y_grouper = datawork.get(Path.Pickle.beats_data)
+#train_grouper_model(x1_grouper, x2_grouper, y_grouper)
 
 
 
