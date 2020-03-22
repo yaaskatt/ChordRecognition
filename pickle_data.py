@@ -59,10 +59,10 @@ def create_beat_training_data(songSet):
 
             start = end
 
-        songChroma_denoised = models.denoise(np.array(songChroma))
+        songChroma_np = np.array(songChroma)
 
-        chroma1.extend(songChroma_denoised[0:len(songChroma_denoised) - 1])
-        chroma2.extend(songChroma_denoised[1:len(songChroma_denoised)])
+        chroma1.extend(songChroma_np[0:len(songChroma_np) - 1])
+        chroma2.extend(songChroma_np[1:len(songChroma_np)])
     datawork.save((np.array(chroma1), np.array(chroma2), np.array(chord_changes)), Path.Pickle.beats_data)
 
 
@@ -88,17 +88,17 @@ def create_chords_training_data(songSet):
             if root in noteMap_dict:
                 root = noteMap_dict[root]
 
-            frame_chromas = datawork.get_chromagram_from_audio(audio, start, end)
+            chord_chroma = datawork.get_chromagram_from_audio(audio, start, end)
             reference = np.array(datawork.get(Dir.references + root + "/" + root + type + ".pickle")).T
             chord = root + type
 
-            chordChromas.append(frame_chromas)
+            chordChromas.append(chord_chroma)
             chromaRefs.append(reference)
             chords.append(chord)
 
-            chordChromas_frames.extend(np.split(frame_chromas, frame_chromas.shape[1], axis=1))
+            chordChromas_frames.extend(np.split(chord_chroma, chord_chroma.shape[1], axis=1))
 
-            for i in range(frame_chromas.shape[1]):
+            for k in range(chord_chroma.shape[1]):
                 chromaRefs_frames.append(reference)
                 chords_frames.append(chord)
 
@@ -106,7 +106,6 @@ def create_chords_training_data(songSet):
     chromaRefs_frames_np = chromaRefs_frames_np.reshape(chromaRefs_frames_np.shape[0], chromaRefs_frames_np.shape[1], 1)
 
     chords_frames_np = np.array(chords_frames)
-    chords_frames_np = chords_frames_np.reshape(chords_frames_np.shape[0], 1)
 
     datawork.save((chordChromas, np.array(chromaRefs), np.array(chords),
                    np.array(chordChromas_frames), chromaRefs_frames_np, chords_frames_np),
@@ -114,8 +113,8 @@ def create_chords_training_data(songSet):
 
 
 
-songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")
-create_beat_training_data(songSet)
+#songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")
+#create_beat_training_data(songSet)
 #create_chords_training_data(songSet)
 
 

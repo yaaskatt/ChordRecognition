@@ -58,9 +58,23 @@ def widen(array, columns_new):
 
 def get_chromagram(filePath):
     y, sr = librosa.load(filePath)
-    chromagram = librosa.feature.chroma_stft(y, sr=sr)
+    chromagram = librosa.feature.chroma_cens(y, sr=sr)
     return chromagram
 
+def chroma_from_spectrogram(specrogram, sr):
+    chromagram = librosa.feature.chroma_cqt(S=specrogram, sr=sr)
+    return chromagram
+
+def get_spectrogram(filePath):
+    y, sr = librosa.load(filePath)
+    spectrogram = librosa.feature.melspectrogram(y, sr)
+    return spectrogram, sr
+
+def print_spectrogram(S, sr):
+    plt.figure(figsize=(20, 5))
+    S_dB = librosa.power_to_db(S, ref=np.max)
+    librosa.display.specshow(S_dB, x_axis='time', y_axis = 'mel', sr = sr)
+    plt.show()
 
 def print_chromagram(chromagram):
     plt.figure(figsize=(20, 5))
@@ -83,11 +97,11 @@ def reduce(pca, chroma):
 
 
 # Преобразовать массив аккордов в категорический массив
-def get_categorical(chords, int_from_chords_dict_path):
-    int_from_chords = get(int_from_chords_dict_path)
+def get_categorical(chords):
+    chord_to_int = get(Path.Pickle.chordToInt_dict)
     noncateg = []
     for chord in chords:
-        noncateg.append(int_from_chords[chord])
+        noncateg.append(chord_to_int[chord])
     categ = to_categorical(noncateg)
     return categ
 

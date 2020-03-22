@@ -37,27 +37,26 @@ def train_denoiser_model(x, y):
 
 
 def train_classifier_model(x, y):
-    rows, cols = x.shape[1], x.shape[2]
-    input_shape = (rows, cols, 1)
+    x = x.reshape(x.shape[0], x.shape[1], x.shape[2], 1)
+    input_shape = (x.shape[1:])
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3)
-    x_train = x_train.reshape(x_train.shape[0], rows, cols, 1)
-    x_test = x_test.reshape(x_test.shape[0], rows, cols, 1)
 
-    batch_size = x_train.shape[0]
-    epochs = 500
     model = Sequential()
-    model.add(Conv2D(48, kernel_size=3, activation='relu', input_shape=input_shape))
+    model.add(Conv2D(48, kernel_size=3, activation='relu', input_shape=input_shape, padding='same'))
     model.add(Dropout(0.1))
-    model.add(Conv2D(64, kernel_size=3, activation='relu'))
+    model.add(Conv2D(64, kernel_size=3, activation='relu', padding='same'))
     model.add(Dropout(0.2))
     model.add(Flatten())
     model.add(Dense(1024, activation="relu"))
-    model.add(Dropout(0.3))
+    model.add(Dropout(0.1))
     model.add(Dense(y.shape[1], activation='softmax'))
 
     model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
-    model.fit(x_train, y_train, epochs=epochs, batch_size=batch_size,
-              shuffle=True, validation_data=(x_test, y_test))
+    model.fit(x_train, y_train,
+              epochs=130,
+              batch_size=1000,
+              shuffle=True,
+              validation_data=(x_test, y_test))
     model.save(Path.classifier)
 
 def create_base_network(input_shape):
@@ -123,8 +122,8 @@ def train_grouper_model(x1, x2, y):
     model.save(Path.grouper)
 
 
-x1_grouper, x2_grouper, y_grouper = datawork.get(Path.Pickle.beats_data)
-train_grouper_model(x1_grouper, x2_grouper, y_grouper)
+#x1_grouper, x2_grouper, y_grouper = datawork.get(Path.Pickle.beats_data)
+#train_grouper_model(x1_grouper, x2_grouper, y_grouper)
 
 
 
