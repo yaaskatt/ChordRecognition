@@ -1,6 +1,5 @@
 from keras.models import load_model
 from paths import Path
-import datawork
 import numpy as np
 
 

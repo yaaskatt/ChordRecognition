@@ -1,13 +1,6 @@
-from pydub import AudioSegment
-import librosa
 import datawork
-import pandas as pd
-import numpy as np
-import pickle_data
-from paths import Dir, Path
-import prep
-import train
-import models
+from paths import Path
+from creation import train
 
 #prep.create_references()
 #songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")

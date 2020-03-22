@@ -2,11 +2,9 @@ import pandas as pd
 from pydub import AudioSegment
 import numpy as np
 import datawork
-import pickle
-import os
 from paths import Dir
 from paths import Path
-import models
+
 
 def read_audio_data(songSet, index):
     audioFile, chordSet_file = songSet.iloc[index]
@@ -18,6 +16,8 @@ def read_audio_data(songSet, index):
 
 
 def create_beat_training_data(songSet):
+
+    songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")
     chroma1 = []
     chroma2 = []
     chord_changes = []
@@ -67,11 +67,10 @@ def create_beat_training_data(songSet):
 
 
 # Чтение данных из датасетов
-def create_chords_training_data(songSet):
+def create_chords_training_data():
 
+    songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")
     noteMap_dict = datawork.get(Path.Pickle.noteMap_dict)
-    chordChromas, chromaRefs, chords = [], [], []
-
     chordChromas_frames, chromaRefs_frames, chords_frames = [], [], []
 
     for i in range(songSet.shape[0]):
@@ -92,10 +91,6 @@ def create_chords_training_data(songSet):
             reference = np.array(datawork.get(Dir.references + root + "/" + root + type + ".pickle")).T
             chord = root + type
 
-            chordChromas.append(chord_chroma)
-            chromaRefs.append(reference)
-            chords.append(chord)
-
             chordChromas_frames.extend(np.split(chord_chroma, chord_chroma.shape[1], axis=1))
 
             for k in range(chord_chroma.shape[1]):
@@ -107,14 +102,6 @@ def create_chords_training_data(songSet):
 
     chords_frames_np = np.array(chords_frames)
 
-    datawork.save((chordChromas, np.array(chromaRefs), np.array(chords),
-                   np.array(chordChromas_frames), chromaRefs_frames_np, chords_frames_np),
-                  Path.Pickle.chords_data)
-
-
-
-#songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")
-#create_beat_training_data(songSet)
-#create_chords_training_data(songSet)
+    datawork.save((np.array(chordChromas_frames), chromaRefs_frames_np, chords_frames_np), Path.Pickle.chords_data)
 
 
