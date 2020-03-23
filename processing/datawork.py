@@ -5,7 +5,7 @@ import librosa
 from librosa import display
 import os
 from sklearn.decomposition import PCA
-from paths import Path
+from processing.paths import Path
 import pickle
 
 

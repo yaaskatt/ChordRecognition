@@ -5,8 +5,8 @@ from keras import backend as K
 import numpy as np
 from keras.optimizers import RMSprop
 from imblearn.over_sampling import SMOTE
-from paths import Path
-import datawork
+from processing.paths import Path
+from processing import datawork
 
 
 def autoenc(input_shape):

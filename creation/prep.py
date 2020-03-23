@@ -1,8 +1,8 @@
 import os
 import numpy as np
 from pydub import AudioSegment
-import datawork
-from paths import Dir, Path
+from processing import datawork
+from processing.paths import Dir, Path
 
 
 # Генерирование эталонных хромаграмм, присвоение аккордам цифр, установление соответствий между аккордами с # и b
@@ -24,21 +24,26 @@ def create_references():
             else:
                 type = filename[1:len(filename)-4]
 
-        chroma = datawork.read_matrix(Dir.initialReferences + filename)
-        datawork.save(chroma, Dir.initialReferences + root + "/" + filename[0:len(filename) - 4] + ".pickle")
+        chroma = datawork.read_matrix(Dir.initialReferences + "/" + filename)
+        datawork.save(chroma, Dir.references + "/" + root + "/" + filename[0:len(filename) - 4] + ".pickle")
         dict_intToChord[n] = root + type
         dict_chordToInt[root + type] = n
         n += 1  # для словаря
 
         for i in range(1, len(note_name)):
-            # Добавления пар (аккорд - цифра) в словари
+            # Добавление пар (аккорд - цифра) в словари
             dict_intToChord[n] = note_name[i] + type
             dict_chordToInt[note_name[i] + type] = n
 
             # циклическая перестановка для создания хромаграммы каждого аккорда
             chroma = np.roll(chroma, 1, axis=0)
-            datawork.save(chroma, Dir.references + note_name[i] + "/" + note_name[i] + type + ".pickle")
+            datawork.save(chroma, Dir.references + "/" + note_name[i] + "/" + note_name[i] + type + ".pickle")
             n += 1
+
+    # Тишина
+    dict_intToChord[n] = "N"
+    dict_chordToInt["N"] = n
+    datawork.save(np.zeros(12), Dir.references + "/N/N.pickle")
 
     datawork.save(dict_intToChord, Path.Pickle.intToChord_dict)
     datawork.save(dict_chordToInt, Path.Pickle.chordToInt_dict)
@@ -56,10 +61,3 @@ def prepare_audio():
                 mp3.set_channels(1)
             mp3.export(Dir.audioSet + name + ".wav", format="wav")
             os.remove(Dir.audioSet + filename)
-
-prepare_audio()
-#create_references()
-
-
-
-

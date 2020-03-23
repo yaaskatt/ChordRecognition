@@ -1,13 +1,34 @@
-import datawork
-from paths import Path
-from creation import train
+from processing import datawork
+from creation import pickle_data
+import librosa
+import numpy as np
+from processing.paths import Path, Dir
+import pandas as pd
 
 #prep.create_references()
 #songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")
 #pickle_data.create_chords_training_data(songSet)
 
-chromas, refs = datawork.get(Path.Pickle.chords_data)[3:5]
-train.train_denoiser_model(chromas, refs)
+
+songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")
+songChroma, chordChroma, frameChroma = [], [], []
+
+for i in range(1):
+    chordSet, audio, audioPath = pickle_data.read_audio_data(songSet, i)
+
+    for j in range(chordSet.shape[0]):
+        start, end, root, type = chordSet.iloc[j]
+
+        if j == chordSet.shape[0] - 1:
+            end = audio.duration_seconds
+        chord = datawork.get_chromagram_from_audio(audio, start, end)
+        chordChroma.extend(np.split(chord, chord.shape[1], axis=1))
+
+    songChroma = datawork.get_chromagram(audioPath)
+    chordChroma_np = np.array(chordChroma)
+datawork.print_chromagram(songChroma)
+datawork.print_chromagram(chordChroma_np.reshape(chordChroma_np.shape[0], chordChroma_np.shape[1]).T)
+
 
 #test_chromas = chromas[0:15]
 #test_refs = refs[0:15]
