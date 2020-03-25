@@ -1,6 +1,6 @@
 venv/
-__pycache__
+__pycache__/
 .idea/
-dict
-models
-pickled_data
+dict/
+models/
+pickled_data/
