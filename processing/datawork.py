@@ -7,6 +7,7 @@ import os
 from sklearn.decomposition import PCA
 from processing.paths import Path
 import pickle
+from pydub import AudioSegment
 
 
 # Нормализация матрицы
@@ -83,14 +84,14 @@ def print_chromagram(chromagram):
 
 # Уменьшение размерности хромаграмм до нужного значения
 def reduceAll(x, n_components):
-    pca = PCA(n_components=n_components)
     x_red = []
     for chroma in x:
-        x_red.append(reduce(pca, chroma))
+        x_red.append(reduce(chroma, n_components))
     return np.array(x_red)
 
 
-def reduce(pca, chroma):
+def reduce(chroma, n_components):
+    pca = PCA(n_components=n_components)
     chroma = normalize(chroma)
     chroma = pca.fit_transform(chroma)
     return chroma
@@ -129,12 +130,22 @@ def get_chromagram_from_audio(audio, start, end):
 def get_beats(audioPath):
     y, sr = librosa.load(audioPath)
     tempo, beats_frames = librosa.beat.beat_track(y=y, sr=sr)
-    beats_time = []
+    beats = []
     if beats_frames[0] <= 5:
         beats_frames = np.delete(beats_frames, 0)
     for i in range(1, len(beats_frames)):
         if not beats_frames[i] - beats_frames[i - 1] <= 5:
-            beats_time.append(librosa.frames_to_time(beats_frames[i-1], sr=sr))
-    beats_time.append(librosa.frames_to_time(beats_frames[len(beats_frames)-1], sr=sr))
-    return np.array(beats_time)
+            beats.append(beats_frames[i-1])
+    beats.append(beats_frames[len(beats_frames)-1])
+    return np.array(beats)
+
+def mp3_to_wav(audioPath):
+    filename = os.path.basename(audioPath)
+    if filename[len(filename) - 4:len(filename)] == ".mp3":
+        name = filename[0:len(filename) - 4]
+        mp3 = AudioSegment.from_mp3(audioPath)
+        if mp3.channels > 1:
+            mp3.set_channels(1)
+        mp3.export(os.path.dirname(audioPath) + name + ".wav", format="wav")
+    return os.path.dirname(audioPath) + name + ".wav"
 

@@ -14,7 +14,8 @@ class Path:
 
     grouper = "../models/grouper.h5"
     denoiser = "../models/denoiser.h5"
-    classifier = "../models/classifier.h5"
+    frameClassifier = "../models/frameClassifier.h5"
+    beatClassifier = "../models/beatClassifier.h5"
     reducer = "../models/reducer.pickle"
     song_set = "../../songs_for_training/song_set.csv"
 

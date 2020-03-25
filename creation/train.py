@@ -3,7 +3,7 @@ from keras.layers import Dense, Input, Conv2D, Flatten, Dropout, Lambda, Reshape
 from keras.models import Model, Sequential
 from keras import backend as K
 import numpy as np
-from keras.optimizers import RMSprop
+from keras.optimizers import RMSprop, Adam
 from imblearn.over_sampling import SMOTE
 from processing.paths import Path
 from processing import datawork
@@ -36,10 +36,10 @@ def train_denoiser_model(x, y):
     model.save(Path.denoiser)
 
 
-def train_classifier_model(x, y):
+def train_frame_classifier_model(x, y):
     x = x.reshape(x.shape[0], x.shape[1], x.shape[2], 1)
     input_shape = (x.shape[1:])
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3)
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.5)
 
     model = Sequential()
     model.add(Conv2D(48, kernel_size=3, activation='relu', input_shape=input_shape, padding='same'))
@@ -55,9 +55,31 @@ def train_classifier_model(x, y):
     model.fit(x_train, y_train,
               epochs=130,
               batch_size=1000,
-              shuffle=True,
               validation_data=(x_test, y_test))
-    model.save(Path.classifier)
+    model.save(Path.frameClassifier)
+
+def train_beat_classifier_model(x, y):
+    x = x.reshape(x.shape[0], x.shape[1], x.shape[2], 1)
+    input_shape = (x.shape[1:])
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
+
+    model = Sequential()
+    model.add(Conv2D(48, kernel_size=3, activation='relu', input_shape=input_shape, padding='same'))
+    model.add(Dropout(0.1))
+    model.add(Conv2D(64, kernel_size=5, activation='relu', padding='same'))
+    model.add(Dropout(0.1))
+    model.add(Flatten())
+    model.add(Dense(1024, activation="relu"))
+    model.add(Dropout(0.1))
+    model.add(Dense(y.shape[1], activation='softmax'))
+
+    adam = Adam(learning_rate=0.0001)
+    model.compile(optimizer=adam, loss="categorical_crossentropy", metrics=["accuracy"])
+    model.fit(x_train, y_train,
+              epochs=500,
+              batch_size=200,
+              validation_data=(x_test, y_test))
+    model.save(Path.beatClassifier)
 
 def create_base_network(input_shape):
     input = Input(shape=input_shape)
@@ -120,10 +142,6 @@ def train_grouper_model(x1, x2, y):
               epochs=70,
               validation_data=([x1_test, x2_test], y_test))
     model.save(Path.grouper)
-
-
-#x1_grouper, x2_grouper, y_grouper = datawork.get(Path.Pickle.beats_data)
-#train_grouper_model(x1_grouper, x2_grouper, y_grouper)
 
 
 
