@@ -9,20 +9,20 @@ def denoise(x):
     y = model.predict(x.reshape(x.shape[0], x.shape[1], x.shape[2], 1))
     return y.reshape(y.shape[0], y.shape[1], y.shape[2])
 
-def classify(x):
-    model = load_model(Path.classifier)
+def classify(x, classifierPath):
+    model = load_model(classifierPath)
     num, rows, cols = x.shape[0], x.shape[1], x.shape[2]
     y = model.predict(x.reshape(num, rows, cols, 1))
     return y
 
-def group(x1, x2):
+def group(x):
+    x1 = x[0:len(x) - 1]
+    x2 = x[1:len(x)]
     model = load_model(Path.grouper, compile=False)
     y = model.predict([x1, x2])
     return y.reshape(y.shape[0] * y.shape[1])
 
 def compute_accuracy(y_true, y_pred):
-    '''Compute classification accuracy with a fixed threshold on distances.
-    '''
     pred = y_pred.ravel() < 0.5
     return np.mean(pred == y_true)
 

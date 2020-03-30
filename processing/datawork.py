@@ -111,10 +111,16 @@ def get_categorical(chords):
 def get_noncategorical(categ):
     intToChord_dict = get(Path.Pickle.intToChord_dict)
     noncateg, confidence = [], []
-    for array in categ:
-        num = np.argmax(array)
-        noncateg.append(intToChord_dict[num])
-        confidence.append(max(array))
+    array = categ.tolist()
+    for j in range(len(array)):
+        beat_noncateg, beat_confidence = [], []
+        for i in range(3):
+            num = np.argmax(array[j])
+            beat_noncateg.append(intToChord_dict[num])
+            beat_confidence.append(max(array[j]))
+            array[j].pop(num)
+        noncateg.append(beat_noncateg)
+        confidence.append(beat_confidence)
     return noncateg, confidence
 
 

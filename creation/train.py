@@ -1,12 +1,19 @@
 from sklearn.model_selection import train_test_split
-from keras.layers import Dense, Input, Conv2D, Flatten, Dropout, Lambda, Reshape
+from sklearn.utils.class_weight import compute_class_weight, compute_sample_weight
+from keras.layers import Dense, Input, Conv1D, Conv2D, Flatten, Dropout, Lambda, Reshape, MaxPooling1D
 from keras.models import Model, Sequential
 from keras import backend as K
 import numpy as np
 from keras.optimizers import RMSprop, Adam
-from imblearn.over_sampling import SMOTE
+from imblearn.over_sampling import SMOTE, ADASYN, BorderlineSMOTE, KMeansSMOTE
+from imblearn.combine import SMOTETomek, SMOTEENN
+from imblearn.under_sampling import NeighbourhoodCleaningRule
 from processing.paths import Path
+
+import sklearn.metrics as metrics
+from imblearn.under_sampling import RandomUnderSampler
 from processing import datawork
+from sklearn.model_selection import KFold
 
 
 def autoenc(input_shape):
@@ -39,7 +46,7 @@ def train_denoiser_model(x, y):
 def train_frame_classifier_model(x, y):
     x = x.reshape(x.shape[0], x.shape[1], x.shape[2], 1)
     input_shape = (x.shape[1:])
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.5)
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.4)
 
     model = Sequential()
     model.add(Conv2D(48, kernel_size=3, activation='relu', input_shape=input_shape, padding='same'))
@@ -58,10 +65,19 @@ def train_frame_classifier_model(x, y):
               validation_data=(x_test, y_test))
     model.save(Path.frameClassifier)
 
-def train_beat_classifier_model(x, y):
-    x = x.reshape(x.shape[0], x.shape[1], x.shape[2], 1)
-    input_shape = (x.shape[1:])
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
+
+def train_chord_classifier_model(x, y):
+    resample = SMOTE()
+    x = x.reshape(x.shape[0], x.shape[1])
+
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1)
+    x_train = x_train.reshape(x_train.shape[0], x_train.shape[1])
+
+    x_train, y_train = resample.fit_resample(x_train, y_train)
+    x_train = np.array(np.split(x_train.T, len(x_train), axis=1))
+    x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], 1, 1)
+    x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1, 1)
+    input_shape = (x_train.shape[1:])
 
     model = Sequential()
     model.add(Conv2D(48, kernel_size=3, activation='relu', input_shape=input_shape, padding='same'))
@@ -76,17 +92,52 @@ def train_beat_classifier_model(x, y):
     adam = Adam(learning_rate=0.0001)
     model.compile(optimizer=adam, loss="categorical_crossentropy", metrics=["accuracy"])
     model.fit(x_train, y_train,
-              epochs=500,
+              epochs=100,
               batch_size=200,
+              validation_data=(x_test, y_test))
+    model.save(Path.chordClassifier)
+
+
+def train_beat_classifier_model(x, y):
+    resample = SMOTETomek()
+    x = x.reshape(x.shape[0], x.shape[1])
+
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1)
+    x_train = x_train.reshape(x_train.shape[0], x_train.shape[1])
+
+    x_train, y_train = resample.fit_resample(x_train, y_train)
+    x_train = np.array(np.split(x_train.T, len(x_train), axis=1))
+    x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], 1, 1)
+    x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1, 1)
+    input_shape = (x_train.shape[1:])
+
+    sample_weight = compute_sample_weight('balanced', y_train)
+
+    model = Sequential()
+    model.add(Conv2D(64, kernel_size=3, activation='relu', input_shape=input_shape, padding='same'))
+    model.add(Dropout(0.2))
+    model.add(Conv2D(48, kernel_size=3, activation='relu', padding='same'))
+    model.add(Dropout(0.2))
+    model.add(Flatten())
+    model.add(Dense(1024, activation="relu"))
+    model.add(Dropout(0.2))
+    model.add(Dense(y.shape[1], activation='softmax'))
+
+
+    adam = Adam(0.0001)
+    model.compile(optimizer=adam, loss="categorical_crossentropy", metrics=["accuracy"])
+    model.fit(x_train, y_train,
+              epochs=150,
+              batch_size=2000,
               validation_data=(x_test, y_test))
     model.save(Path.beatClassifier)
 
 def create_base_network(input_shape):
     input = Input(shape=input_shape)
     x = Flatten()(input)
-    x = Dense(128, activation="relu")(x)
-    x = Dropout(0.1)(x)
-    x = Dense(128, activation="relu")(x)
+    x = Dense(256, activation="relu")(x)
+    x = Dropout(0.3)(x)
+    x = Dense(512, activation="relu")(x)
     x = Dropout(0.3)(x)
     x = Dense(256, activation="sigmoid")(x)
     return Model(input, x)
@@ -112,17 +163,16 @@ def accuracy(y_true, y_pred):
 
 def train_grouper_model(x1, x2, y):
     input_shape = (x1.shape[1:])
-
     x = np.concatenate((x1.reshape(x1.shape[0], x1.shape[1] * x1.shape[2]),
-                              x2.reshape(x2.shape[0], x2.shape[1] * x2.shape[2])), axis=1)
-    oversample = SMOTE()
-    x_oversampled, y_oversampled = oversample.fit_resample(x, y)
-    x1_oversampled, x2_oversampled = np.split(x_oversampled, 2, axis=1)
-    x1_oversampled = x1_oversampled.reshape(x1_oversampled.shape[0], x1.shape[1], x1.shape[2])
-    x2_oversampled = x2_oversampled.reshape(x2_oversampled.shape[0], x2.shape[1], x2.shape[2])
+                        x2.reshape(x2.shape[0], x2.shape[1] * x2.shape[2])), axis=1)
+    resample = BorderlineSMOTE('minority')
+    x_resampled, y_resampled = resample.fit_resample(x, y)
+    x1_resampled, x2_resampled = np.split(x_resampled, 2, axis=1)
+    x1_resampled = x1_resampled.reshape(x1_resampled.shape[0], x1.shape[1], x1.shape[2])
+    x2_resampled = x2_resampled.reshape(x2_resampled.shape[0], x2.shape[1], x2.shape[2])
 
-    x1_train, x1_test, x2_train, x2_test, y_train, y_test = train_test_split(x1_oversampled, x2_oversampled,
-                                                                             y_oversampled, test_size=0.3)
+    x1_train, x1_test, x2_train, x2_test, y_train, y_test = train_test_split(x1_resampled, x2_resampled,
+                                                                             y_resampled, test_size=0.2)
 
     base_network = create_base_network(input_shape)
     input1 = Input(shape=input_shape)
@@ -139,9 +189,11 @@ def train_grouper_model(x1, x2, y):
     model.compile(loss=contrastive_loss, optimizer=rms, metrics=[accuracy])
     model.fit([x1_train, x2_train], y_train,
               batch_size=2056,
-              epochs=70,
+              epochs=400,
               validation_data=([x1_test, x2_test], y_test))
     model.save(Path.grouper)
+
+
 
 
 

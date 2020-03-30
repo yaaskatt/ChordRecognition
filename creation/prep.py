@@ -12,6 +12,8 @@ def create_references():
     dict_intToChord = {}
     dict_chordToInt = {}
     for filename in os.listdir(Dir.initialReferences):
+        if filename[len(filename)-3:len(filename)] != "txt":
+            continue
         root = filename[0]
         type = ""
         # Если в аккорде больше одного символа
