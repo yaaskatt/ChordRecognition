@@ -79,6 +79,8 @@ def train_chord_classifier_model(x, y):
     x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1, 1)
     input_shape = (x_train.shape[1:])
 
+    sample_weight = compute_sample_weight('balanced', y_train)
+
     model = Sequential()
     model.add(Conv2D(48, kernel_size=3, activation='relu', input_shape=input_shape, padding='same'))
     model.add(Dropout(0.1))
@@ -94,7 +96,8 @@ def train_chord_classifier_model(x, y):
     model.fit(x_train, y_train,
               epochs=100,
               batch_size=200,
-              validation_data=(x_test, y_test))
+              validation_data=(x_test, y_test),
+              sample_weight=sample_weight)
     model.save(Path.chordClassifier)
 
 
@@ -124,12 +127,13 @@ def train_beat_classifier_model(x, y):
     model.add(Dense(y.shape[1], activation='softmax'))
 
 
-    adam = Adam(0.0001)
+    adam = Adam()
     model.compile(optimizer=adam, loss="categorical_crossentropy", metrics=["accuracy"])
     model.fit(x_train, y_train,
               epochs=150,
               batch_size=2000,
-              validation_data=(x_test, y_test))
+              validation_data=(x_test, y_test),
+              shuffle=True)
     model.save(Path.beatClassifier)
 
 def create_base_network(input_shape):

@@ -59,7 +59,8 @@ def widen(array, columns_new):
 
 def get_chromagram(filePath):
     y, sr = librosa.load(filePath)
-    chromagram = librosa.feature.chroma_cens(y, sr=sr)
+    y_harm = librosa.effects.harmonic(y=y, margin=4)
+    chromagram = librosa.feature.chroma_cens(y=y_harm, sr=sr, bins_per_octave=12*5)
     return chromagram
 
 def chroma_from_spectrogram(specrogram, sr):
@@ -122,6 +123,43 @@ def get_noncategorical(categ):
         noncateg.append(beat_noncateg)
         confidence.append(beat_confidence)
     return noncateg, confidence
+
+def extend_chromas(beat_chromas, beat_chords):
+    note_name = np.array(['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'])
+
+    additional_beat_chromas = []
+    additional_beat_chords = []
+
+    for i in range(1, 12):
+        additional_beat_chromas.extend(np.roll(beat_chromas.reshape(beat_chromas.shape[0],
+                                                                    beat_chromas.shape[1]), i, axis=1))
+
+        for chord in beat_chords:
+            if len(chord) == 1:
+                note = chord
+            elif chord[1] == 'b':
+                note = chord[0:2]
+            else:
+                note = chord[0]
+            if len(chord) > len(note):
+                type = chord[len(note):len(chord)]
+            else:
+                type = ""
+            if note != 'N':
+                note_idx = (np.where(note_name == note)[0][0] + 1) % 12
+                additional_beat_chords.append(note_name[note_idx] + type)
+            else:
+                additional_beat_chords.append('N')
+    N_idx = np.where(np.array(additional_beat_chords) == 'N')[0]
+    additional_beat_chords_np = np.delete(np.array(additional_beat_chords), N_idx)
+    additional_beat_chromas_np = np.delete(np.array(additional_beat_chromas), N_idx, axis=0).T
+
+    beat_chromas = np.concatenate(
+        (beat_chromas, np.array(np.split(additional_beat_chromas_np, additional_beat_chromas_np.shape[1], axis=1))),
+        axis=0)
+    beat_chords = np.concatenate((beat_chords, additional_beat_chords_np))
+
+    return beat_chromas, beat_chords
 
 
 # Получение хромаграммы указанного отрывка

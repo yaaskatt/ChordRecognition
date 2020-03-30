@@ -68,6 +68,7 @@ def create_beat_training_data():
         print("song №", k+1, sep="")
         chordSet, audio, audioPath = read_audio_data(songSet, k)
         songChroma = datawork.get_chromagram(audioPath)
+        datawork.print_chromagram(songChroma)
         beats = datawork.get_beats(audioPath)
         start = 0
         j, m = 0, 0
