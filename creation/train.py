@@ -210,19 +210,19 @@ def train_forward_sequencer_model(chords_pred, chords_true, changes, classes_num
     x = x.reshape(x.shape[0], x.shape[1], 1)
     y = datawork.get_categorical(datawork.get_chordNames(y))
 
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1)
 
     model = Sequential()
-    model.add(LSTM(256, input_shape=x_train.shape[1:], dropout=0.3, return_sequences=True))
+    model.add(LSTM(256, input_shape=x_train.shape[1:], return_sequences=True))
     model.add(LSTM(128))
-    model.add(Dropout(0.3))
     model.add(Dense(classes_num, activation='softmax'))
-    opt = Adam(learning_rate=0.01)
+    opt = Adam(learning_rate=0.001)
     sample_weight = compute_sample_weight('balanced', y_train)
-    model.compile(optimizer=opt, loss='mean_squared_error', metrics=["accuracy"])
+    model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=["accuracy"])
     model.fit(x_train, y_train,
-              epochs=30,
-              batch_size=500,
+              epochs=20,
+              batch_size=10,
+              verbose=2,
               validation_data=(x_test, y_test),
               )
 
