@@ -27,7 +27,7 @@ beat_chromas, beat_chords, beats, chord_changes = datawork.get(Path.Pickle.beat_
 
 #pickle_data.create_sequencer_training_data()
 seq_chords, seq_changes = datawork.get(Path.Pickle.sequencer_data)
-train.train_forward_sequencer_model(datawork.get_int_array(seq_chords), datawork.get_int(beat_chords), seq_changes, 25)
+train.train_forward_sequencer_model(seq_chords, datawork.get_categorical(beat_chords), seq_changes, 25)
 
 
 

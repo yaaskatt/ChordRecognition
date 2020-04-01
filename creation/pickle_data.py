@@ -162,8 +162,8 @@ def create_sequencer_training_data():
         beats = datawork.get_beats(audioPath)
         beat_chroma = datawork.reduceAll(np.split(songChroma, beats, axis=1), 1)
 
-        chord_pred = datawork.get_noncategorical(models.classify(beat_chroma, Path.beatClassifier))[0]
-        change_pred = np.append(models.group(beat_chroma), 0)
+        chord_pred = models.classify(beat_chroma, Path.beatClassifier)
+        change_pred = np.insert(np.append(models.group(beat_chroma), 0), 0, 0)
 
         chords.append(chord_pred)
         changes.append(change_pred)

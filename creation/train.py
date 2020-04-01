@@ -201,13 +201,13 @@ def train_forward_sequencer_model(chords_pred, chords_true, changes, classes_num
     m = 20
     for i in range(len(chords_pred)):
         for k in range(0, len(chords_pred[i]) - 20):
-            x.append(np.vstack((chords_pred[i][k:k + 19], changes[i][k:k + 19])).T)
-            x.append(np.vstack((chords_true[m - 20:m - 1], changes[i][k:k + 19])).T)
+            x.append(np.append(chords_pred[i][k:k + 19], (changes[i][k + 1:k + 20]).reshape(19, 1), axis=1))
+            x.append(np.append(chords_true[m - 20:m - 1], (changes[i][k + 1:k + 20]).reshape(19, 1), axis=1))
             y.append(chords_true[m - 1])
             y.append(chords_true[m - 1])
             m += 1
     x = np.array(x)
-    y = datawork.get_categorical(datawork.get_chordNames(y))
+    y = np.array(y)
 
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1)
 
