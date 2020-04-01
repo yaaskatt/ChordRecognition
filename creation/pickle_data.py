@@ -5,6 +5,7 @@ import librosa
 from processing import datawork
 from processing.paths import Dir
 from processing.paths import Path
+from usage import models
 
 
 def read_audio_data(songSet, index):
@@ -127,6 +128,7 @@ def create_chords_training_data():
         print("song №", i + 1, sep="")
         chordSet, audio, audioPath = read_audio_data(songSet, i)
         songChroma = datawork.get_chromagram(audioPath)
+        datawork.print_chromagram(songChroma)
         for j in range(chordSet.shape[0]):
             start, end, root, type = chordSet.iloc[j]
             endFrame = librosa.time_to_frames(end)
@@ -148,6 +150,29 @@ def create_chords_training_data():
     chromaRefs_np = np.array(chromaRefs)
     chromaRefs_np = chromaRefs_np.reshape(chromaRefs_np.shape[0], chromaRefs_np.shape[1], 1)
     datawork.save((datawork.reduceAll(chroma, 1), chromaRefs_np, np.array(chords)), Path.Pickle.chord_data)
+
+def create_sequencer_training_data():
+    songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")
+    chords, changes = [], []
+
+    for i in range(songSet.shape[0]):
+        print("song №", i + 1, sep="")
+        chordSet, audio, audioPath = read_audio_data(songSet, i)
+        songChroma = datawork.get_chromagram(audioPath)
+        beats = datawork.get_beats(audioPath)
+        beat_chroma = datawork.reduceAll(np.split(songChroma, beats, axis=1), 1)
+
+        chord_pred = datawork.get_noncategorical(models.classify(beat_chroma, Path.beatClassifier))[0]
+        change_pred = models.group(beat_chroma)
+
+        chords.append(chord_pred)
+        changes.append(change_pred)
+
+    datawork.save((chords, changes), Path.Pickle.sequencer_data)
+
+
+
+
 
 
 

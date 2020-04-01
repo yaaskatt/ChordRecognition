@@ -59,8 +59,8 @@ def widen(array, columns_new):
 
 def get_chromagram(filePath):
     y, sr = librosa.load(filePath)
-    y_harm = librosa.effects.harmonic(y=y, margin=4)
-    chromagram = librosa.feature.chroma_cens(y=y_harm, sr=sr, bins_per_octave=12*5)
+    y_harm = librosa.effects.harmonic(y=y, margin=3)
+    chromagram = librosa.feature.chroma_cens(y=y_harm, sr=sr, bins_per_octave=12*5, win_len_smooth=80)
     return chromagram
 
 def chroma_from_spectrogram(specrogram, sr):
@@ -100,13 +100,30 @@ def reduce(chroma, n_components):
 
 # Преобразовать массив аккордов в категорический массив
 def get_categorical(chords):
-    chord_to_int = get(Path.Pickle.chordToInt_dict)
-    noncateg = []
-    for chord in chords:
-        noncateg.append(chord_to_int[chord])
+    noncateg = get_int(chords)
     categ = to_categorical(noncateg)
     return categ
 
+def get_int(chords):
+    chord_to_int = get(Path.Pickle.chordToInt_dict)
+    int_chords = []
+    for i in range(len(chords)):
+        int_chords.append(chord_to_int[chords[i]])
+    return int_chords
+
+def get_int_array(chords):
+    int_chords = []
+    for i in range(len(chords)):
+        int_chords.append(get_int(chords[i]))
+    return int_chords
+
+
+def get_chordNames(int_chords):
+    intToChord_dict = get(Path.Pickle.intToChord_dict)
+    chordNames = []
+    for j in range(len(int_chords)):
+        chordNames.append(intToChord_dict[int_chords[j]])
+    return chordNames
 
 # Преобразовать категорический массив в желаемый вид
 def get_noncategorical(categ):
@@ -114,14 +131,9 @@ def get_noncategorical(categ):
     noncateg, confidence = [], []
     array = categ.tolist()
     for j in range(len(array)):
-        beat_noncateg, beat_confidence = [], []
-        for i in range(3):
-            num = np.argmax(array[j])
-            beat_noncateg.append(intToChord_dict[num])
-            beat_confidence.append(max(array[j]))
-            array[j].pop(num)
-        noncateg.append(beat_noncateg)
-        confidence.append(beat_confidence)
+        num = np.argmax(array[j])
+        noncateg.append(intToChord_dict[num])
+        confidence.append(max(array[j]))
     return noncateg, confidence
 
 def extend_chromas(beat_chromas, beat_chords):

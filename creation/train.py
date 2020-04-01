@@ -1,6 +1,6 @@
 from sklearn.model_selection import train_test_split
 from sklearn.utils.class_weight import compute_class_weight, compute_sample_weight
-from keras.layers import Dense, Input, Conv1D, Conv2D, Flatten, Dropout, Lambda, Reshape, MaxPooling1D
+from keras.layers import Dense, Input, Conv1D, Conv2D, Flatten, Dropout, Lambda, Reshape, MaxPooling1D, LSTM, TimeDistributed
 from keras.models import Model, Sequential
 from keras import backend as K
 import numpy as np
@@ -9,7 +9,6 @@ from imblearn.over_sampling import SMOTE, ADASYN, BorderlineSMOTE, KMeansSMOTE
 from imblearn.combine import SMOTETomek, SMOTEENN
 from imblearn.under_sampling import NeighbourhoodCleaningRule
 from processing.paths import Path
-
 import sklearn.metrics as metrics
 from imblearn.under_sampling import RandomUnderSampler
 from processing import datawork
@@ -67,10 +66,10 @@ def train_frame_classifier_model(x, y):
 
 
 def train_chord_classifier_model(x, y):
-    resample = SMOTE()
+    resample = SMOTE(k_neighbors=5)
     x = x.reshape(x.shape[0], x.shape[1])
 
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1)
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
     x_train = x_train.reshape(x_train.shape[0], x_train.shape[1])
 
     x_train, y_train = resample.fit_resample(x_train, y_train)
@@ -82,9 +81,9 @@ def train_chord_classifier_model(x, y):
     sample_weight = compute_sample_weight('balanced', y_train)
 
     model = Sequential()
-    model.add(Conv2D(48, kernel_size=3, activation='relu', input_shape=input_shape, padding='same'))
+    model.add(Conv2D(96, kernel_size=3, activation='relu', input_shape=input_shape, padding='same'))
     model.add(Dropout(0.1))
-    model.add(Conv2D(64, kernel_size=5, activation='relu', padding='same'))
+    model.add(Conv2D(128, kernel_size=5, activation='relu', padding='same'))
     model.add(Dropout(0.1))
     model.add(Flatten())
     model.add(Dense(1024, activation="relu"))
@@ -94,18 +93,18 @@ def train_chord_classifier_model(x, y):
     adam = Adam(learning_rate=0.0001)
     model.compile(optimizer=adam, loss="categorical_crossentropy", metrics=["accuracy"])
     model.fit(x_train, y_train,
-              epochs=100,
-              batch_size=200,
+              epochs=70,
+              batch_size=500,
               validation_data=(x_test, y_test),
-              sample_weight=sample_weight)
+              shuffle=True)
     model.save(Path.chordClassifier)
 
 
 def train_beat_classifier_model(x, y):
-    resample = SMOTETomek()
+    resample = SMOTE()
     x = x.reshape(x.shape[0], x.shape[1])
 
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1)
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
     x_train = x_train.reshape(x_train.shape[0], x_train.shape[1])
 
     x_train, y_train = resample.fit_resample(x_train, y_train)
@@ -114,27 +113,27 @@ def train_beat_classifier_model(x, y):
     x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1, 1)
     input_shape = (x_train.shape[1:])
 
-    sample_weight = compute_sample_weight('balanced', y_train)
-
     model = Sequential()
-    model.add(Conv2D(64, kernel_size=3, activation='relu', input_shape=input_shape, padding='same'))
-    model.add(Dropout(0.2))
-    model.add(Conv2D(48, kernel_size=3, activation='relu', padding='same'))
-    model.add(Dropout(0.2))
+    model.add(Conv2D(64, kernel_size=3, activation='relu', padding='same', input_shape=input_shape))
+    model.add(Dropout(0.3))
+    model.add(Conv2D(96, kernel_size=3, activation='relu', padding='same'))
+    model.add(Dropout(0.5))
     model.add(Flatten())
     model.add(Dense(1024, activation="relu"))
-    model.add(Dropout(0.2))
-    model.add(Dense(y.shape[1], activation='softmax'))
+    model.add(Dropout(0.3))
 
+    model.add(Dense(y.shape[1], activation='softmax'))
 
     adam = Adam()
     model.compile(optimizer=adam, loss="categorical_crossentropy", metrics=["accuracy"])
+
     model.fit(x_train, y_train,
-              epochs=150,
-              batch_size=2000,
-              validation_data=(x_test, y_test),
-              shuffle=True)
+              epochs=70,
+              batch_size=1000,
+              validation_data=(x_test, y_test))
     model.save(Path.beatClassifier)
+
+
 
 def create_base_network(input_shape):
     input = Input(shape=input_shape)
@@ -169,7 +168,7 @@ def train_grouper_model(x1, x2, y):
     input_shape = (x1.shape[1:])
     x = np.concatenate((x1.reshape(x1.shape[0], x1.shape[1] * x1.shape[2]),
                         x2.reshape(x2.shape[0], x2.shape[1] * x2.shape[2])), axis=1)
-    resample = BorderlineSMOTE('minority')
+    resample = SMOTETomek()
     x_resampled, y_resampled = resample.fit_resample(x, y)
     x1_resampled, x2_resampled = np.split(x_resampled, 2, axis=1)
     x1_resampled = x1_resampled.reshape(x1_resampled.shape[0], x1.shape[1], x1.shape[2])
@@ -196,6 +195,42 @@ def train_grouper_model(x1, x2, y):
               epochs=400,
               validation_data=([x1_test, x2_test], y_test))
     model.save(Path.grouper)
+
+def train_forward_sequencer_model(chords_pred, chords_true, changes, classes_num):
+    x, y = [], []
+    m = 20
+    for i in range(len(chords_pred)):
+        for k in range(0, len(chords_pred[i]) - 20):
+            x.append(chords_pred[i][k:k + 19])
+            x.append(chords_true[m - 20:m - 1])
+            y.append(chords_true[m - 1])
+            y.append(chords_true[m - 1])
+            m += 1
+    x = np.array(x)
+    x = x.reshape(x.shape[0], x.shape[1], 1)
+    y = datawork.get_categorical(datawork.get_chordNames(y))
+
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
+
+    model = Sequential()
+    model.add(LSTM(256, input_shape=x_train.shape[1:], dropout=0.3, return_sequences=True))
+    model.add(LSTM(128))
+    model.add(Dropout(0.3))
+    model.add(Dense(classes_num, activation='softmax'))
+    opt = Adam(learning_rate=0.01)
+    sample_weight = compute_sample_weight('balanced', y_train)
+    model.compile(optimizer=opt, loss='mean_squared_error', metrics=["accuracy"])
+    model.fit(x_train, y_train,
+              epochs=30,
+              batch_size=500,
+              validation_data=(x_test, y_test),
+              )
+
+    y_pred = model.predict(x_test)
+    for i in range(len(y_pred)):
+        print("pred:", y_pred[i], "actual:", y_test[i])
+
+
 
 
 

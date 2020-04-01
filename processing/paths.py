@@ -9,6 +9,7 @@ class Path:
         chord_data = "../pickled_data/chord_data.pickle"
         beat_data = "../pickled_data/beat_data.pickle"
         frame_data = "../pickled_data/frame_data.pickle"
+        sequencer_data = "..pickled_data/sequencer_data.pickle"
         intToChord_dict = "../dict/chord_from_int.pickle"
         chordToInt_dict = "../dict/int_from_chord.pickle"
         noteMap_dict = "../dict/note_map.pickle"

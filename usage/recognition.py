@@ -9,10 +9,11 @@ def getChords(filepath):
     beat_chroma = datawork.reduceAll(np.split(chroma, beats, axis=1), 1)
 
     #frame_cat = models.classify(frame_chroma, Path.frameClassifier)
-    beat_cat = models.classify(beat_chroma, Path.beatClassifier)
-    chord_changes = models.group(beat_chroma)
-    chord_changes[chord_changes >= 0.4] = 1
-    chord_changes[chord_changes < 0.4] = 0
+    """""
+    
+    
+    chord_changes[chord_changes >= 0.3] = 1
+    chord_changes[chord_changes < 0.3] = 0
 
     change_indicators = chord_changes.astype(int) * beats
     grouped_beats = change_indicators[change_indicators != 0]
@@ -27,15 +28,18 @@ def getChords(filepath):
         if change_indicators[i] != 0:
             chordNum += 1
         chords_per_beat.append(chord_cat[chordNum])
+    """""
 
     #frame_chords, frame_accuracy = datawork.get_noncategorical(frame_cat)
+    # chord_chords, chord_accuracy = datawork.get_noncategorical(np.array(chords_per_beat))
+    beat_cat = models.classify(beat_chroma, Path.beatClassifier)
     beat_chords, beat_accuracy = datawork.get_noncategorical(beat_cat)
-    chord_chords, chord_accuracy = datawork.get_noncategorical(np.array(chords_per_beat))
+    chord_changes = models.group(beat_chroma)
 
-    print("beat chord =", beat_chords[0], "accuracy =", beat_accuracy[0], "chord =", chord_chords[0], "accuracy =", chord_accuracy[0])
+
+    print("beat chord =", beat_chords[0], "accuracy =", beat_accuracy[0])
     for i in range(1, len(beat_chords)):
-        print("beat chord =", beat_chords[i], "accuracy =", beat_accuracy[i], "chord =", chord_chords[i], "accuracy =",
-              chord_accuracy[i], "chord changed =", chord_changes[i-1])
+        print("beat chord =", beat_chords[i], "accuracy =", beat_accuracy[i], "chord changed =", chord_changes[i-1])
 
 
 
