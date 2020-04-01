@@ -229,6 +229,39 @@ def train_forward_sequencer_model(chords_pred, chords_true, changes, classes_num
     for i in range(len(y_pred)):
         print("pred:", y_pred[i], "actual:", y_test[i])
 
+def train_backward_sequencer_model(chords_pred, chords_true, changes, classes_num):
+    x, y = [], []
+    m = 0
+    for i in range(len(chords_pred)):
+        for k in range(0, len(chords_pred[i]) - 20):
+            x.append(np.append(chords_pred[i][k + 19:k:-1], (changes[i][k + 19:k:-1]).reshape(19, 1), axis=1))
+            x.append(np.append(chords_true[m + 19:m:-1], (changes[i][k + 19:k:-1]).reshape(19, 1), axis=1))
+            y.append(chords_true[m])
+            y.append(chords_true[m])
+            m += 1
+    x = np.array(x)
+    y = np.array(y)
+
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.1)
+
+    model = Sequential()
+    model.add(LSTM(256, input_shape=x_train.shape[1:], return_sequences=True))
+    model.add(LSTM(128))
+    model.add(Dense(classes_num, activation='softmax'))
+    opt = Adam(learning_rate=0.001)
+    sample_weight = compute_sample_weight('balanced', y_train)
+    model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=["accuracy"])
+    model.fit(x_train, y_train,
+              epochs=20,
+              batch_size=10,
+              verbose=2,
+              validation_data=(x_test, y_test),
+              )
+
+    y_pred = model.predict(x_test)
+    for i in range(len(y_pred)):
+        print("pred:", y_pred[i], "actual:", y_test[i])
+
 
 
 
