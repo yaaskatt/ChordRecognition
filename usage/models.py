@@ -20,7 +20,12 @@ def group(x):
     x2 = x[1:len(x)]
     model = load_model(Path.grouper, compile=False)
     y = model.predict([x1, x2])
-    return y.reshape(y.shape[0] * y.shape[1])
+    return np.insert(np.append(y.reshape(y.shape[0] * y.shape[1]), 0), 0, 0)
+
+def predict(x, model):
+    x = x.reshape(1, x.shape[0], x.shape[1])
+    y = model.predict(x)
+    return y.reshape(y.shape[1])
 
 def compute_accuracy(y_true, y_pred):
     pred = y_pred.ravel() < 0.5

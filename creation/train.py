@@ -9,6 +9,7 @@ from imblearn.over_sampling import SMOTE, ADASYN, BorderlineSMOTE, KMeansSMOTE
 from imblearn.combine import SMOTETomek, SMOTEENN
 from imblearn.under_sampling import NeighbourhoodCleaningRule
 from processing.paths import Path
+from sklearn.metrics import confusion_matrix
 import sklearn.metrics as metrics
 from imblearn.under_sampling import RandomUnderSampler
 from processing import datawork
@@ -114,12 +115,14 @@ def train_beat_classifier_model(x, y):
     input_shape = (x_train.shape[1:])
 
     model = Sequential()
-    model.add(Conv2D(64, kernel_size=3, activation='relu', padding='same', input_shape=input_shape))
+    model.add(Conv2D(64, kernel_size=5, activation='relu', padding='same', input_shape=input_shape))
     model.add(Dropout(0.3))
     model.add(Conv2D(96, kernel_size=3, activation='relu', padding='same'))
-    model.add(Dropout(0.5))
+    model.add(Dropout(0.4))
+    model.add(Conv2D(64, kernel_size=1, activation='relu'))
+    model.add(Dropout(0.2))
     model.add(Flatten())
-    model.add(Dense(1024, activation="relu"))
+    model.add(Dense(2054, activation="relu"))
     model.add(Dropout(0.3))
 
     model.add(Dense(y.shape[1], activation='softmax'))
@@ -128,12 +131,12 @@ def train_beat_classifier_model(x, y):
     model.compile(optimizer=adam, loss="categorical_crossentropy", metrics=["accuracy"])
 
     model.fit(x_train, y_train,
-              epochs=70,
+              epochs=30,
               batch_size=1000,
               validation_data=(x_test, y_test))
     model.save(Path.beatClassifier)
 
-
+    model.summary()
 
 def create_base_network(input_shape):
     input = Input(shape=input_shape)
@@ -194,6 +197,7 @@ def train_grouper_model(x1, x2, y):
               batch_size=2056,
               epochs=400,
               validation_data=([x1_test, x2_test], y_test))
+    model.summary()
     model.save(Path.grouper)
 
 def train_forward_sequencer_model(chords_pred, chords_true, changes, classes_num):
@@ -201,9 +205,7 @@ def train_forward_sequencer_model(chords_pred, chords_true, changes, classes_num
     m = 20
     for i in range(len(chords_pred)):
         for k in range(0, len(chords_pred[i]) - 20):
-            x.append(np.append(chords_pred[i][k:k + 19], (changes[i][k + 1:k + 20]).reshape(19, 1), axis=1))
             x.append(np.append(chords_true[m - 20:m - 1], (changes[i][k + 1:k + 20]).reshape(19, 1), axis=1))
-            y.append(chords_true[m - 1])
             y.append(chords_true[m - 1])
             m += 1
     x = np.array(x)
@@ -216,7 +218,6 @@ def train_forward_sequencer_model(chords_pred, chords_true, changes, classes_num
     model.add(LSTM(128))
     model.add(Dense(classes_num, activation='softmax'))
     opt = Adam(learning_rate=0.001)
-    sample_weight = compute_sample_weight('balanced', y_train)
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=["accuracy"])
     model.fit(x_train, y_train,
               epochs=20,
@@ -225,18 +226,16 @@ def train_forward_sequencer_model(chords_pred, chords_true, changes, classes_num
               validation_data=(x_test, y_test),
               )
 
-    y_pred = model.predict(x_test)
-    for i in range(len(y_pred)):
-        print("pred:", y_pred[i], "actual:", y_test[i])
+
+    model.summary()
+    model.save(Path.sequencer_fw)
 
 def train_backward_sequencer_model(chords_pred, chords_true, changes, classes_num):
     x, y = [], []
     m = 0
     for i in range(len(chords_pred)):
         for k in range(0, len(chords_pred[i]) - 20):
-            x.append(np.append(chords_pred[i][k + 19:k:-1], (changes[i][k + 19:k:-1]).reshape(19, 1), axis=1))
             x.append(np.append(chords_true[m + 19:m:-1], (changes[i][k + 19:k:-1]).reshape(19, 1), axis=1))
-            y.append(chords_true[m])
             y.append(chords_true[m])
             m += 1
     x = np.array(x)
@@ -258,55 +257,5 @@ def train_backward_sequencer_model(chords_pred, chords_true, changes, classes_nu
               validation_data=(x_test, y_test),
               )
 
-    y_pred = model.predict(x_test)
-    for i in range(len(y_pred)):
-        print("pred:", y_pred[i], "actual:", y_test[i])
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    model.summary()
+    model.save(Path.sequencer_bw)

@@ -19,6 +19,8 @@ class Path:
     frameClassifier = "../models/frameClassifier.h5"
     beatClassifier = "../models/beatClassifier.h5"
     chordClassifier = "../models/chordClassifier.h5"
+    sequencer_fw = "../models/sequencer_fw.h5"
+    sequencer_bw = "../models/sequencer_bw.h5"
     reducer = "../models/reducer.pickle"
     song_set = "../../songs_for_training/song_set.csv"
 

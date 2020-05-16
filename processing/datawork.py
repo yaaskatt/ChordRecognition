@@ -104,6 +104,10 @@ def get_categorical(chords):
     categ = to_categorical(noncateg)
     return categ
 
+def get_categorical_from_int(noncateg):
+    categ = to_categorical(noncateg)
+    return categ
+
 def get_int(chords):
     chord_to_int = get(Path.Pickle.chordToInt_dict)
     int_chords = []
@@ -117,13 +121,12 @@ def get_int_array(chords):
         int_chords.append(get_int(chords[i]))
     return int_chords
 
-
 def get_chordNames(int_chords):
     intToChord_dict = get(Path.Pickle.intToChord_dict)
     chordNames = []
     for j in range(len(int_chords)):
         chordNames.append(intToChord_dict[int_chords[j]])
-    return chordNames
+    return np.array(chordNames)
 
 # Преобразовать категорический массив в желаемый вид
 def get_noncategorical(categ):
@@ -194,6 +197,13 @@ def get_beats(audioPath):
             beats.append(beats_frames[i-1])
     beats.append(beats_frames[len(beats_frames)-1])
     return np.array(beats)
+
+def get_time(beats, beat_nums):
+    beat_nums = [int(i) for i in beat_nums]
+    time = []
+    for i in range(len(beat_nums)):
+        time.append(librosa.frames_to_time(beats[beat_nums[i]]))
+    return np.array(time)
 
 def mp3_to_wav(audioPath):
     filename = os.path.basename(audioPath)
