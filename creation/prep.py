@@ -3,9 +3,11 @@ import numpy as np
 from pydub import AudioSegment
 from processing import datawork
 from processing.paths import Dir, Path
+from memory_profiler import profile
 
 
 # Генерирование эталонных хромаграмм, присвоение аккордам цифр, установление соответствий между аккордами с # и b
+@profile(precision=2)
 def create_references():
     note_name = np.array(['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'])
     n = 0
@@ -54,6 +56,7 @@ def create_references():
 
 
 # Преобразование аудио в нужный формат
+@profile(precision=2)
 def prepare_audio():
     for filename in os.listdir(Dir.audioSet):
         if filename[len(filename) - 4:len(filename)] == ".mp3":

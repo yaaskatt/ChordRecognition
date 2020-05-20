@@ -16,49 +16,6 @@ def read_audio_data(songSet, index):
     audio = AudioSegment.from_wav(audioPath)
     return chordSet, audio, audioPath
 
-
-def create_frame_training_data():
-    songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")
-    noteMap_dict = datawork.get(Path.Pickle.noteMap_dict)
-    chroma, chromaRefs, chords = [], [], []
-
-    for i in range(songSet.shape[0]):
-        chordSet, audio, audioPath = read_audio_data(songSet, i)
-        songChroma = datawork.get_chromagram(audioPath)
-        print("CHROMA CONTAINS", songChroma.shape[1], "FRAMES")
-
-        chordNum, lastFrameAdded = 0, 0
-        while chordNum < chordSet.shape[0]:
-            print("chord changed")
-
-            end, root, type = chordSet.iloc[chordNum][1:4]
-            endFrame = librosa.time_to_frames(end)
-            if chordNum == chordSet.shape[0] - 1:
-                endFrame = songChroma.shape[1]
-            if root in noteMap_dict:
-                root = noteMap_dict[root]
-
-            reference = np.array(datawork.get(Dir.references + "/" + root + "/" + root + type + ".pickle")).T
-            chord = root + type
-
-            while lastFrameAdded < songChroma.shape[1] and endFrame > lastFrameAdded:
-                print("total:", songChroma.shape[1], "now:", lastFrameAdded + 1, "this chord should be till", endFrame)
-                chromaRefs.append(reference)
-                chords.append(chord)
-                lastFrameAdded += 1
-
-            chordNum += 1
-
-        chroma.extend(songChroma.T.reshape(songChroma.shape[1], songChroma.shape[0], 1))
-
-        if len(chords) != len(chroma):
-            print("НЕ РАВНО")
-            return
-    chromaRefs_np = np.array(chromaRefs)
-    chromaRefs_np = chromaRefs_np.reshape(chromaRefs_np.shape[0], chromaRefs_np.shape[1], 1)
-    datawork.save((np.array(chroma), chromaRefs_np, np.array(chords)), Path.Pickle.frame_data)
-
-
 def create_beat_training_data():
 
     songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")
@@ -116,41 +73,6 @@ def create_beat_training_data():
     datawork.save((np.array(beat_chroma), np.array(beat_chords), np.array(beats), np.array(chord_changes)),
                   Path.Pickle.beat_data)
 
-
-# Чтение данных из датасетов
-def create_chords_training_data():
-
-    songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")
-    noteMap_dict = datawork.get(Path.Pickle.noteMap_dict)
-    chroma, chromaRefs, chords = [], [], []
-
-    for i in range(songSet.shape[0]):
-        print("song №", i + 1, sep="")
-        chordSet, audio, audioPath = read_audio_data(songSet, i)
-        songChroma = datawork.get_chromagram(audioPath)
-        datawork.print_chromagram(songChroma)
-        for j in range(chordSet.shape[0]):
-            start, end, root, type = chordSet.iloc[j]
-            endFrame = librosa.time_to_frames(end)
-            startFrame = librosa.time_to_frames(start)
-            if j == chordSet.shape[0] - 1:
-                endFrame = songChroma.shape[1] - 1
-            if root in noteMap_dict:
-                root = noteMap_dict[root]
-
-            reference = np.array(datawork.get(Dir.references + "/" + root + "/" + root + type + ".pickle")).T
-            chord = root + type
-            chromaRefs.append(reference)
-            chords.append(chord)
-            chroma.append(datawork.reduce(songChroma[:, startFrame:endFrame], 1))
-
-        if len(chords) != len(chroma):
-            print ("НЕ РАВНО")
-            return
-    chromaRefs_np = np.array(chromaRefs)
-    chromaRefs_np = chromaRefs_np.reshape(chromaRefs_np.shape[0], chromaRefs_np.shape[1], 1)
-    datawork.save((datawork.reduceAll(chroma, 1), chromaRefs_np, np.array(chords)), Path.Pickle.chord_data)
-
 def create_sequencer_training_data():
     songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")
     chords, changes = [], []
@@ -162,7 +84,7 @@ def create_sequencer_training_data():
         beats = datawork.get_beats(audioPath)
         beat_chroma = datawork.reduceAll(np.split(songChroma, beats, axis=1), 1)
 
-        chord_pred = models.classify(beat_chroma, Path.beatClassifier)
+        chord_pred = models.classify(beat_chroma)
         change_pred = np.insert(np.append(models.group(beat_chroma), 0), 0, 0)
 
         chords.append(chord_pred)

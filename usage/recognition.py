@@ -2,7 +2,9 @@ from processing import datawork
 from usage import models
 import numpy as np
 import math
+from memory_profiler import profile
 
+@profile(precision=4)
 def getChords(filepath):
     chroma = datawork.get_chromagram(filepath)
     beats = datawork.get_beats(filepath)
