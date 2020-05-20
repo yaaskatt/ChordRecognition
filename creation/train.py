@@ -5,7 +5,7 @@ from keras.models import Model, Sequential
 from keras import backend as K
 import numpy as np
 from keras.optimizers import RMSprop, Adam
-from imblearn.over_sampling import SMOTE, ADASYN, BorderlineSMOTE, KMeansSMOTE
+from imblearn.over_sampling import SMOTE, ADASYN, BorderlineSMOTE, KMeansSMOTE, SMOTENC
 from imblearn.combine import SMOTETomek, SMOTEENN
 from imblearn.under_sampling import NeighbourhoodCleaningRule
 from processing.paths import Path
@@ -15,114 +15,49 @@ from imblearn.under_sampling import RandomUnderSampler
 from processing import datawork
 from sklearn.model_selection import KFold
 
-
-def autoenc(input_shape):
-    # Вход
-    x = Input(name='inputs', shape=input_shape, dtype='float32')
-    flat_x = Flatten()(x)
-    # Кодировщик
-    enc = Dense(input_shape[0], activation='relu', name='encoder')(flat_x)
-    # Декодер
-    dec = Dense(input_shape[0] * input_shape[1], activation='sigmoid', name='decoder')(enc)
-    dec = Reshape((input_shape[0], input_shape[1], input_shape[2]))(dec)
-    Model(inputs=x, outputs=dec).summary()
-    return Model(inputs=x, outputs=dec)
-
-def train_denoiser_model(x, y):
-    x = x.reshape(x.shape[0], x.shape[1], x.shape[2], 1)
-    y = y.reshape(y.shape[0], y.shape[1], y.shape[2], 1)
-    input_shape = (x.shape[1:])
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3)
-
-    model = autoenc(input_shape)
-    model.compile(optimizer="adadelta", loss="binary_crossentropy", metrics=["accuracy"])
-    model.fit(x_train, y_train,
-              epochs=20,
-              batch_size=2056,
-              shuffle=True, validation_data=(x_test, y_test))
-    model.save(Path.denoiser)
-
-
-def train_frame_classifier_model(x, y):
-    x = x.reshape(x.shape[0], x.shape[1], x.shape[2], 1)
-    input_shape = (x.shape[1:])
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.4)
-
-    model = Sequential()
-    model.add(Conv2D(48, kernel_size=3, activation='relu', input_shape=input_shape, padding='same'))
-    model.add(Dropout(0.1))
-    model.add(Conv2D(64, kernel_size=3, activation='relu', padding='same'))
-    model.add(Dropout(0.2))
-    model.add(Flatten())
-    model.add(Dense(1024, activation="relu"))
-    model.add(Dropout(0.1))
-    model.add(Dense(y.shape[1], activation='softmax'))
-
-    model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
-    model.fit(x_train, y_train,
-              epochs=130,
-              batch_size=1000,
-              validation_data=(x_test, y_test))
-    model.save(Path.frameClassifier)
-
-
-def train_chord_classifier_model(x, y):
-    resample = SMOTE(k_neighbors=5)
-    x = x.reshape(x.shape[0], x.shape[1])
-
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
-    x_train = x_train.reshape(x_train.shape[0], x_train.shape[1])
-
-    x_train, y_train = resample.fit_resample(x_train, y_train)
-    x_train = np.array(np.split(x_train.T, len(x_train), axis=1))
-    x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], 1, 1)
-    x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1, 1)
-    input_shape = (x_train.shape[1:])
-
-    sample_weight = compute_sample_weight('balanced', y_train)
-
-    model = Sequential()
-    model.add(Conv2D(96, kernel_size=3, activation='relu', input_shape=input_shape, padding='same'))
-    model.add(Dropout(0.1))
-    model.add(Conv2D(128, kernel_size=5, activation='relu', padding='same'))
-    model.add(Dropout(0.1))
-    model.add(Flatten())
-    model.add(Dense(1024, activation="relu"))
-    model.add(Dropout(0.1))
-    model.add(Dense(y.shape[1], activation='softmax'))
-
-    adam = Adam(learning_rate=0.0001)
-    model.compile(optimizer=adam, loss="categorical_crossentropy", metrics=["accuracy"])
-    model.fit(x_train, y_train,
-              epochs=70,
-              batch_size=500,
-              validation_data=(x_test, y_test),
-              shuffle=True)
-    model.save(Path.chordClassifier)
-
+def remove_minorities(x, y):
+    noncat = np.array(datawork.get_noncategorical(y)[0])
+    unique = np.unique(noncat)
+    ind = []
+    for value in unique:
+        count = np.sum(noncat == value)
+        if count < 12:
+            ind.extend(np.where(noncat == value)[0])
+    return np.delete(x, ind, axis=0), np.delete(y, ind, axis=0)
 
 def train_beat_classifier_model(x, y):
-    resample = SMOTE()
+    resample = SMOTE('not majority')
     x = x.reshape(x.shape[0], x.shape[1])
 
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
-    x_train = x_train.reshape(x_train.shape[0], x_train.shape[1])
+    x, y = remove_minorities(x, y)
 
-    x_train, y_train = resample.fit_resample(x_train, y_train)
-    x_train = np.array(np.split(x_train.T, len(x_train), axis=1))
-    x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], 1, 1)
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
+
+    x_res, y_res = resample.fit_resample(x_train, y_train)
+
+    y_res = np.hstack([y_res, np.zeros([y_res.shape[0], y_train.shape[1] - y_res.shape[1]])])
+
+    resample_map = {}
+
+    for i in range(len(y_train)):
+        if np.argmax(y_res[i]) not in resample_map:
+            resample_map[np.argmax(y_res[i])] = y_train[i]
+        y_res[i] = resample_map[np.argmax(y_res[i])]
+
+    x_train = x_res.reshape(x_res.shape[0], x_res.shape[1], 1, 1)
     x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1, 1)
+    y_train = y_res
     input_shape = (x_train.shape[1:])
 
     model = Sequential()
-    model.add(Conv2D(64, kernel_size=5, activation='relu', padding='same', input_shape=input_shape))
+    model.add(Conv2D(32, kernel_size=5, activation='relu', padding='same', input_shape=input_shape))
     model.add(Dropout(0.3))
-    model.add(Conv2D(96, kernel_size=3, activation='relu', padding='same'))
+    model.add(Conv2D(64, kernel_size=3, activation='relu', padding='same'))
     model.add(Dropout(0.4))
-    model.add(Conv2D(64, kernel_size=1, activation='relu'))
+    model.add(Conv2D(32, kernel_size=1, activation='relu'))
     model.add(Dropout(0.2))
     model.add(Flatten())
-    model.add(Dense(2054, activation="relu"))
+    model.add(Dense(512, activation="relu"))
     model.add(Dropout(0.3))
 
     model.add(Dense(y.shape[1], activation='softmax'))
@@ -132,7 +67,7 @@ def train_beat_classifier_model(x, y):
 
     model.fit(x_train, y_train,
               epochs=30,
-              batch_size=1000,
+              batch_size=500,
               validation_data=(x_test, y_test))
     model.save(Path.beatClassifier)
 
@@ -166,6 +101,7 @@ def contrastive_loss(y_true, y_pred):
 
 def accuracy(y_true, y_pred):
     return K.mean(K.equal(y_true, K.cast(y_pred < 0.5, y_true.dtype)))
+
 
 def train_grouper_model(x1, x2, y):
     input_shape = (x1.shape[1:])
