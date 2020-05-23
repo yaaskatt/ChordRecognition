@@ -6,10 +6,16 @@ classifier = load_model(Path.beatClassifier)
 grouper = load_model(Path.grouper, compile=False)
 sequencer_fw = load_model(Path.sequencer_fw)
 sequencer_bw = load_model(Path.sequencer_bw)
+triadClassifier = load_model(Path.triadClassifier)
 
 def classify(x):
     num, rows, cols = x.shape[0], x.shape[1], x.shape[2]
     y = classifier.predict(x.reshape(num, rows, cols, 1))
+    return y
+
+def classifyTriad(x):
+    num, rows = x.shape[0], x.shape[1]
+    y = triadClassifier.predict(x.reshape(num, rows, 1, 1))
     return y
 
 def group(x):

@@ -12,6 +12,7 @@ class Path:
 
     grouper = "../models/grouper.h5"
     beatClassifier = "../models/beatClassifier.h5"
+    triadClassifier = "../models/triadClassifier.h5"
     sequencer_fw = "../models/sequencer_fw.h5"
     sequencer_bw = "../models/sequencer_bw.h5"
     song_set = "../../songs_for_training/song_set_extended.csv"

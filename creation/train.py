@@ -13,6 +13,7 @@ from sklearn.metrics import confusion_matrix
 import sklearn.metrics as metrics
 from imblearn.under_sampling import RandomUnderSampler
 from processing import datawork
+from usage import models
 from sklearn.model_selection import KFold
 
 def remove_minorities(x, y):
@@ -32,6 +33,8 @@ def train_beat_classifier_model(x, y):
 
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
 
+    triads = models.classifyTriad(x_train)
+    x_train = np.concatenate((x_train, triads), axis=1)
     x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], 1, 1)
     x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1, 1)
     input_shape = (x_train.shape[1:])
