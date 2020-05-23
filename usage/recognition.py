@@ -2,11 +2,10 @@ from processing import datawork
 from usage import models
 import numpy as np
 import math
-from memory_profiler import profile
 
-@profile(precision=4)
 def getChords(filepath):
     chroma = datawork.get_chromagram(filepath)
+
     beats = datawork.get_beats(filepath)
     beat_chroma = datawork.reduceAll(np.split(chroma, beats, axis=1), 1)
 
@@ -16,23 +15,25 @@ def getChords(filepath):
 
     beat_chords, beat_accuracy = datawork.get_noncategorical(chords_cat)
 
-    for i in range(5):
+    if len(beat_chords) >= 40:
+        for i in range(5):
 
-        for i in range(19, len(chords_cat) - 20):
-            seq1 = np.append(chords_cat[i-19:i], chord_changes[i-18:i+1].reshape(19, 1), axis=1)
-            seq2 = np.append(chords_cat[i+19:i:-1], chord_changes[i+19:i:-1].reshape(19,1), axis=1)
-            result[i] = get_sequence_pred(seq1, seq2, chords_cat[i])
-        for i in range(18, -1, -1):
-            seq2 = np.append(chords_cat[i+19:i:-1], chord_changes[i+19:i:-1].reshape(19, 1), axis=1)
-            result[i] = get_backward_pred(seq2, chords_cat[i])
-        for i in range(len(chords_cat) - 20, len(chords_cat)):
-            seq1 = np.append(chords_cat[i - 19:i], chord_changes[i - 18:i+1].reshape(19, 1), axis=1)
-            result[i] = get_forward_pred(seq1, chords_cat[i])
+            for i in range(19, len(chords_cat) - 20):
+                seq1 = np.append(chords_cat[i-19:i], chord_changes[i-18:i+1].reshape(19, 1), axis=1)
+                seq2 = np.append(chords_cat[i+19:i:-1], chord_changes[i+19:i:-1].reshape(19,1), axis=1)
+                result[i] = get_sequence_pred(seq1, seq2, chords_cat[i])
+            for i in range(18, -1, -1):
+                seq2 = np.append(chords_cat[i+19:i:-1], chord_changes[i+19:i:-1].reshape(19, 1), axis=1)
+                result[i] = get_backward_pred(seq2, chords_cat[i])
+            for i in range(len(chords_cat) - 20, len(chords_cat)):
+                seq1 = np.append(chords_cat[i - 19:i], chord_changes[i - 18:i+1].reshape(19, 1), axis=1)
+                result[i] = get_forward_pred(seq1, chords_cat[i])
 
-        chords_cat = datawork.get_categorical_from_int(result)
+            chords_cat = datawork.get_categorical_from_int(result)
 
-
-    result_chords = datawork.get_chordNames(result)
+        result_chords = datawork.get_chordNames(result)
+    else:
+        result_chords = datawork.get_noncategorical(chords_cat)
     for i in range(len(result_chords)):
         print("classified:", beat_chords[i], "result:", result_chords[i])
 
@@ -49,14 +50,11 @@ def getChords(filepath):
             grouped_beat_chords.append([i, i, result_chords[i]])
             prevChord = result_chords[i]
     grouped_beat_chords = np.array(grouped_beat_chords)
-    print(grouped_beat_chords)
     grouped_time_chords = ([datawork.get_time(np.insert(beats, 0, 0), grouped_beat_chords[:,0]),
                             datawork.get_time(np.append(beats, chroma.shape[1]), grouped_beat_chords[:,1]),
                             grouped_beat_chords[:,2]])
     grouped_time_chords = np.array(grouped_time_chords).T
-    print(grouped_time_chords)
     return grouped_time_chords
-
 
 def get_sequence_pred(seq1, seq2, classified):
     chord_prob1 = models.predict(seq1, 'f')

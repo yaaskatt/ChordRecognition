@@ -6,6 +6,7 @@ from processing import datawork
 from processing.paths import Dir
 from processing.paths import Path
 from usage import models
+from memory_profiler import profile
 
 
 def read_audio_data(songSet, index):
@@ -16,7 +17,7 @@ def read_audio_data(songSet, index):
     audio = AudioSegment.from_wav(audioPath)
     return chordSet, audio, audioPath
 
-def create_beat_training_data():
+def create_beat_training_data(note_name, chord_type):
 
     songSet = pd.read_csv(Path.song_set, sep=";", encoding="UTF-8")
     noteMap_dict = datawork.get(Path.Pickle.noteMap_dict)
@@ -62,7 +63,8 @@ def create_beat_training_data():
                     else:
                         chord_changes.append(1)
                 print("same=", chord_changes[len(chord_changes) - 1])
-
+            if root not in note_name or type not in chord_type:
+                return
             if root in noteMap_dict:
                 root = noteMap_dict[root]
             beat_chords.append(root + type)
@@ -85,7 +87,7 @@ def create_sequencer_training_data():
         beat_chroma = datawork.reduceAll(np.split(songChroma, beats, axis=1), 1)
 
         chord_pred = models.classify(beat_chroma)
-        change_pred = np.insert(np.append(models.group(beat_chroma), 0), 0, 0)
+        change_pred = models.group(beat_chroma)
 
         chords.append(chord_pred)
         changes.append(change_pred)

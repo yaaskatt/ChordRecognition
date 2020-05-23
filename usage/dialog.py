@@ -9,7 +9,6 @@ class Out(Frame):
     def __init__(self, parent):
         filepath = filedialog.askopenfilename()
         filepath = datawork.mp3_to_wav(filepath)
-        label = Label(text='Подождите')
 
         Frame.__init__(self, parent)
         chords = recognition.getChords(filepath)

@@ -6,100 +6,8 @@ from keras import backend as K
 import numpy as np
 from keras.optimizers import RMSprop, Adam
 from imblearn.over_sampling import SMOTE, ADASYN, BorderlineSMOTE, KMeansSMOTE
-from imblearn.combine import SMOTETomek, SMOTEENN
-from imblearn.under_sampling import NeighbourhoodCleaningRule
+from imblearn.combine import SMOTETomek
 from processing.paths import Path
-from sklearn.metrics import confusion_matrix
-import sklearn.metrics as metrics
-from imblearn.under_sampling import RandomUnderSampler
-from processing import datawork
-from sklearn.model_selection import KFold
-
-
-def autoenc(input_shape):
-    # Вход
-    x = Input(name='inputs', shape=input_shape, dtype='float32')
-    flat_x = Flatten()(x)
-    # Кодировщик
-    enc = Dense(input_shape[0], activation='relu', name='encoder')(flat_x)
-    # Декодер
-    dec = Dense(input_shape[0] * input_shape[1], activation='sigmoid', name='decoder')(enc)
-    dec = Reshape((input_shape[0], input_shape[1], input_shape[2]))(dec)
-    Model(inputs=x, outputs=dec).summary()
-    return Model(inputs=x, outputs=dec)
-
-def train_denoiser_model(x, y):
-    x = x.reshape(x.shape[0], x.shape[1], x.shape[2], 1)
-    y = y.reshape(y.shape[0], y.shape[1], y.shape[2], 1)
-    input_shape = (x.shape[1:])
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.3)
-
-    model = autoenc(input_shape)
-    model.compile(optimizer="adadelta", loss="binary_crossentropy", metrics=["accuracy"])
-    model.fit(x_train, y_train,
-              epochs=20,
-              batch_size=2056,
-              shuffle=True, validation_data=(x_test, y_test))
-    model.save(Path.denoiser)
-
-
-def train_frame_classifier_model(x, y):
-    x = x.reshape(x.shape[0], x.shape[1], x.shape[2], 1)
-    input_shape = (x.shape[1:])
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.4)
-
-    model = Sequential()
-    model.add(Conv2D(48, kernel_size=3, activation='relu', input_shape=input_shape, padding='same'))
-    model.add(Dropout(0.1))
-    model.add(Conv2D(64, kernel_size=3, activation='relu', padding='same'))
-    model.add(Dropout(0.2))
-    model.add(Flatten())
-    model.add(Dense(1024, activation="relu"))
-    model.add(Dropout(0.1))
-    model.add(Dense(y.shape[1], activation='softmax'))
-
-    model.compile(optimizer="adam", loss="categorical_crossentropy", metrics=["accuracy"])
-    model.fit(x_train, y_train,
-              epochs=130,
-              batch_size=1000,
-              validation_data=(x_test, y_test))
-    model.save(Path.frameClassifier)
-
-
-def train_chord_classifier_model(x, y):
-    resample = SMOTE(k_neighbors=5)
-    x = x.reshape(x.shape[0], x.shape[1])
-
-    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
-    x_train = x_train.reshape(x_train.shape[0], x_train.shape[1])
-
-    x_train, y_train = resample.fit_resample(x_train, y_train)
-    x_train = np.array(np.split(x_train.T, len(x_train), axis=1))
-    x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], 1, 1)
-    x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1, 1)
-    input_shape = (x_train.shape[1:])
-
-    sample_weight = compute_sample_weight('balanced', y_train)
-
-    model = Sequential()
-    model.add(Conv2D(96, kernel_size=3, activation='relu', input_shape=input_shape, padding='same'))
-    model.add(Dropout(0.1))
-    model.add(Conv2D(128, kernel_size=5, activation='relu', padding='same'))
-    model.add(Dropout(0.1))
-    model.add(Flatten())
-    model.add(Dense(1024, activation="relu"))
-    model.add(Dropout(0.1))
-    model.add(Dense(y.shape[1], activation='softmax'))
-
-    adam = Adam(learning_rate=0.0001)
-    model.compile(optimizer=adam, loss="categorical_crossentropy", metrics=["accuracy"])
-    model.fit(x_train, y_train,
-              epochs=70,
-              batch_size=500,
-              validation_data=(x_test, y_test),
-              shuffle=True)
-    model.save(Path.chordClassifier)
-
 
 def train_beat_classifier_model(x, y):
     resample = SMOTE()
@@ -200,11 +108,11 @@ def train_grouper_model(x1, x2, y):
     model.summary()
     model.save(Path.grouper)
 
-def train_forward_sequencer_model(chords_pred, chords_true, changes, classes_num):
+def train_forward_sequencer_model(chords_true, changes, classes_num):
     x, y = [], []
     m = 20
-    for i in range(len(chords_pred)):
-        for k in range(0, len(chords_pred[i]) - 20):
+    for i in range(len(changes)):
+        for k in range(0, len(changes[i]) - 20):
             x.append(np.append(chords_true[m - 20:m - 1], (changes[i][k + 1:k + 20]).reshape(19, 1), axis=1))
             y.append(chords_true[m - 1])
             m += 1
