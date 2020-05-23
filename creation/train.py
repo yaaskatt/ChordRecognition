@@ -26,28 +26,16 @@ def remove_minorities(x, y):
     return np.delete(x, ind, axis=0), np.delete(y, ind, axis=0)
 
 def train_beat_classifier_model(x, y):
-    resample = SMOTE('not majority')
     x = x.reshape(x.shape[0], x.shape[1])
 
     x, y = remove_minorities(x, y)
 
     x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2)
 
-    x_res, y_res = resample.fit_resample(x_train, y_train)
-
-    y_res = np.hstack([y_res, np.zeros([y_res.shape[0], y_train.shape[1] - y_res.shape[1]])])
-
-    resample_map = {}
-
-    for i in range(len(y_train)):
-        if np.argmax(y_res[i]) not in resample_map:
-            resample_map[np.argmax(y_res[i])] = y_train[i]
-        y_res[i] = resample_map[np.argmax(y_res[i])]
-
-    x_train = x_res.reshape(x_res.shape[0], x_res.shape[1], 1, 1)
+    x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], 1, 1)
     x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1, 1)
-    y_train = y_res
     input_shape = (x_train.shape[1:])
+    sample_weight = compute_sample_weight('balanced', y_train)
 
     model = Sequential()
     model.add(Conv2D(32, kernel_size=5, activation='relu', padding='same', input_shape=input_shape))
@@ -66,9 +54,10 @@ def train_beat_classifier_model(x, y):
     model.compile(optimizer=adam, loss="categorical_crossentropy", metrics=["accuracy"])
 
     model.fit(x_train, y_train,
-              epochs=30,
-              batch_size=500,
-              validation_data=(x_test, y_test))
+              epochs=100,
+              batch_size=50,
+              validation_data=(x_test, y_test),
+              sample_weight=sample_weight)
     model.save(Path.beatClassifier)
 
     model.summary()

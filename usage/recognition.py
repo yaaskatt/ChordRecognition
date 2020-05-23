@@ -14,7 +14,7 @@ def getChords(filepath):
 
     beat_chords, beat_accuracy = datawork.get_noncategorical(chords_cat)
 
-    for i in range(5):
+    for i in range(0):
 
         for i in range(19, len(chords_cat) - 20):
             seq1 = np.append(chords_cat[i-19:i], chord_changes[i-18:i+1].reshape(19, 1), axis=1)
@@ -29,8 +29,8 @@ def getChords(filepath):
 
         chords_cat = datawork.get_categorical_from_int(result)
 
-
-    result_chords = datawork.get_chordNames(result)
+    result_chords = datawork.get_noncategorical(chords_cat)[0]
+    #result_chords = datawork.get_chordNames(result)
     for i in range(len(result_chords)):
         print("classified:", beat_chords[i], "result:", result_chords[i])
 
