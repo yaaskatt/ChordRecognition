@@ -1,11 +1,10 @@
 from sklearn.model_selection import train_test_split
-from sklearn.utils.class_weight import compute_class_weight, compute_sample_weight
 from keras.layers import Dense, Input, Conv1D, Conv2D, Flatten, Dropout, Lambda, Reshape, MaxPooling1D, LSTM, TimeDistributed
 from keras.models import Model, Sequential
 from keras import backend as K
 import numpy as np
 from keras.optimizers import RMSprop, Adam
-from imblearn.over_sampling import SMOTE, ADASYN, BorderlineSMOTE, KMeansSMOTE
+from imblearn.over_sampling import SMOTE
 from imblearn.combine import SMOTETomek
 from processing.paths import Path
 
@@ -42,10 +41,10 @@ def train_beat_classifier_model(x, y):
               epochs=30,
               batch_size=1000,
               validation_data=(x_test, y_test))
+    model.summary()
     model.save(Path.beatClassifier)
 
-    model.summary()
-
+# Базовая нейронная сеть для сиамской сети
 def create_base_network(input_shape):
     input = Input(shape=input_shape)
     x = Flatten()(input)
@@ -60,7 +59,6 @@ def euclidean_distance(vects):
     x, y = vects
     sum_square = K.sum(K.square(x - y), axis=1, keepdims=True)
     return K.sqrt(K.maximum(sum_square, K.epsilon()))
-
 
 def eucl_dist_output_shape(shapes):
     shape1, shape2 = shapes
@@ -110,12 +108,9 @@ def train_grouper_model(x1, x2, y):
 
 def train_forward_sequencer_model(chords_true, changes, classes_num):
     x, y = [], []
-    m = 20
-    for i in range(len(changes)):
-        for k in range(0, len(changes[i]) - 20):
-            x.append(np.append(chords_true[m - 20:m - 1], (changes[i][k + 1:k + 20]).reshape(19, 1), axis=1))
-            y.append(chords_true[m - 1])
-            m += 1
+    for m in range(20, len(chords_true)):
+        x.append(np.append(chords_true[m - 20:m - 1], (changes[m-20:m-1]).reshape(19, 1), axis=1))
+        y.append(chords_true[m - 1])
     x = np.array(x)
     y = np.array(y)
 
@@ -128,24 +123,20 @@ def train_forward_sequencer_model(chords_true, changes, classes_num):
     opt = Adam(learning_rate=0.001)
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=["accuracy"])
     model.fit(x_train, y_train,
-              epochs=20,
+              epochs=10,
               batch_size=10,
               verbose=2,
               validation_data=(x_test, y_test),
               )
-
-
     model.summary()
     model.save(Path.sequencer_fw)
 
-def train_backward_sequencer_model(chords_pred, chords_true, changes, classes_num):
+
+def train_backward_sequencer_model(chords_true, changes, classes_num):
     x, y = [], []
-    m = 0
-    for i in range(len(chords_pred)):
-        for k in range(0, len(chords_pred[i]) - 20):
-            x.append(np.append(chords_true[m + 19:m:-1], (changes[i][k + 19:k:-1]).reshape(19, 1), axis=1))
-            y.append(chords_true[m])
-            m += 1
+    for m in range(0, len(chords_true) - 20):
+        x.append(np.append(chords_true[m + 19:m:-1], (changes[m:m+19][::-1]).reshape(19, 1), axis=1))
+        y.append(chords_true[m])
     x = np.array(x)
     y = np.array(y)
 
@@ -159,7 +150,7 @@ def train_backward_sequencer_model(chords_pred, chords_true, changes, classes_nu
     sample_weight = compute_sample_weight('balanced', y_train)
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=["accuracy"])
     model.fit(x_train, y_train,
-              epochs=20,
+              epochs=10,
               batch_size=10,
               verbose=2,
               validation_data=(x_test, y_test),

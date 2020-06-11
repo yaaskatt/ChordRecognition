@@ -4,6 +4,7 @@ from pydub import AudioSegment
 from processing import datawork
 from processing.paths import Dir, Path
 
+# Преобразование p3 в wav
 def prepare_audio():
     for filename in os.listdir(Dir.audioSet):
         if filename[len(filename) - 4:len(filename)] == ".mp3":
@@ -14,9 +15,8 @@ def prepare_audio():
             mp3.export(Dir.audioSet + name + ".wav", format="wav")
             os.remove(Dir.audioSet + filename)
 
-
+# Создание словарей для конвертации
 def create_references(note_name, chord_type):
-
     dict_intToChord = {}
     dict_chordToInt = {}
     n = 0
@@ -24,9 +24,8 @@ def create_references(note_name, chord_type):
         for j in range(len(note_name)):
             dict_intToChord[n] = note_name[j] + chord_type[i]
             dict_chordToInt[note_name[j] + chord_type[i]] = n
-            n += 1  # для словаря
-
-    # Тишина
+            n += 1
+    # Добавление тишины
     dict_intToChord[n] = "N"
     dict_chordToInt["N"] = n
 

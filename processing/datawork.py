@@ -9,7 +9,6 @@ from processing.paths import Path
 import pickle
 from pydub import AudioSegment
 
-
 # Нормализация матрицы
 def normalize(matrix):
     min = matrix.min()
@@ -32,17 +31,6 @@ def get(path):
     with open(path, 'rb') as f:
         return pickle.load(f)
 
-def get_chromagram(filePath):
-    y, sr = librosa.load(filePath)
-    y_harm = librosa.effects.harmonic(y=y, margin=3)
-    chromagram = librosa.feature.chroma_cens(y=y_harm, sr=sr, bins_per_octave=12*5, win_len_smooth=80)
-    return chromagram
-
-def chroma_from_spectrogram(specrogram, sr):
-    chromagram = librosa.feature.chroma_cqt(S=specrogram, sr=sr)
-    return chromagram
-
-
 def print_chromagram(chromagram):
     plt.figure(figsize=(20, 5))
     display.specshow(chromagram, x_axis='time', y_axis='chroma', cmap='coolwarm')
@@ -55,14 +43,14 @@ def reduceAll(x, n_components):
         x_red.append(reduce(chroma, n_components))
     return np.array(x_red)
 
-
+# Уменьшение размерности матрицы
 def reduce(chroma, n_components):
     pca = PCA(n_components=n_components)
     chroma = normalize(chroma)
     chroma = pca.fit_transform(chroma)
     return chroma
 
-# Преобразовать массив аккордов в категорический массив
+# Преобразовать массив аккордов в категориальный формат
 def get_categorical(chords):
     noncateg = get_int(chords)
     categ = to_categorical(noncateg)
@@ -115,9 +103,20 @@ def get_beats(audioPath):
     beats.append(beats_frames[len(beats_frames)-1])
     return np.array(beats)
 
+# Преобразование фреймы в секунды, используя номера битов
 def get_time(beats, beat_nums):
     beat_nums = [int(i) for i in beat_nums]
     time = []
     for i in range(len(beat_nums)):
         time.append(librosa.frames_to_time(beats[beat_nums[i]]))
     return np.array(time)
+
+def mp3_to_wav(audioPath):
+    filename = os.path.basename(audioPath)
+    if filename[len(filename) - 4:len(filename)] == ".mp3":
+        name = filename[0:len(filename) - 4]
+        mp3 = AudioSegment.from_mp3(audioPath)
+        if mp3.channels > 1:
+            mp3 = mp3.set_channels(1)
+        mp3.export(os.path.dirname(audioPath) + name + ".wav", format="wav")
+    return os.path.dirname(audioPath) + name + ".wav"

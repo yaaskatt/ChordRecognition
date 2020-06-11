@@ -2,6 +2,7 @@ from keras.models import load_model
 from processing.paths import Path
 import numpy as np
 
+#Загрузка моделей
 classifier = load_model(Path.beatClassifier)
 grouper = load_model(Path.grouper, compile=False)
 sequencer_fw = load_model(Path.sequencer_fw)
