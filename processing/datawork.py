@@ -8,6 +8,7 @@ from sklearn.decomposition import PCA
 from processing.paths import Path
 import pickle
 from pydub import AudioSegment
+#AudioSegment.converter = r"C:\\Programs\\Python 3.8\\Lib\\site-packages\\ffmpeg\\bin\\ffmpeg.exe"
 
 # Нормализация матрицы
 def normalize(matrix):
@@ -17,6 +18,13 @@ def normalize(matrix):
         for i in range(len(matrix)):
             matrix[i] = (matrix[i] - min) / (max - min)
     return matrix
+
+# Создание хромаграммы
+def get_chromagram(filePath):
+    y, sr = librosa.load(filePath)
+    y_harm = librosa.effects.harmonic(y=y, margin=3)
+    chromagram = librosa.feature.chroma_cens(y=y_harm, sr=sr, bins_per_octave=12*5, win_len_smooth=80)
+    return chromagram
 
 # Сохранение объекта при помощи pickle
 def save(obj, path):

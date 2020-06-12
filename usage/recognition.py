@@ -18,12 +18,12 @@ def getChords(filepath):
 
     # Преобразование классифицированных аккордов при помощи секвенсоров
     if len(beat_chords) >= 40:
-        for i in range(5):
+        for i in range(1):
 
             for i in range(19, len(chords_cat) - 20):
                 seq1 = np.append(chords_cat[i-19:i], chord_changes[i-18:i+1].reshape(19, 1), axis=1)
                 seq2 = np.append(chords_cat[i+19:i:-1], chord_changes[i+19:i:-1].reshape(19,1), axis=1)
-                result[i] = get_sequence_pred(seq1, seq2, chords_cat[i])
+                result[i] = get_sequence_pred(seq1, seq2, beat_chords[i-1], beat_chords[i+1], chords_cat[i])
             for i in range(18, -1, -1):
                 seq2 = np.append(chords_cat[i+19:i:-1], chord_changes[i+19:i:-1].reshape(19, 1), axis=1)
                 result[i] = get_backward_pred(seq2, chords_cat[i])
@@ -59,9 +59,11 @@ def getChords(filepath):
     return grouped_time_chords
 
 # Получение вывода с использованием обоих секвенсоров
-def get_sequence_pred(seq1, seq2, classified):
+def get_sequence_pred(seq1, seq2, last_ch1, last_ch2, classified):
     chord_prob1 = models.predict(seq1, 'f')
     chord_prob2 = models.predict(seq2, 'b')
+
+    change1, change2 = seq1[18][25], seq2[18][25]
 
     chord_prob1 = (-chord_prob1).argsort()[:8]
     chord_prob2 = (-chord_prob2).argsort()[:8]
@@ -81,18 +83,21 @@ def get_sequence_pred(seq1, seq2, classified):
         if i >= chord_prob1.shape[0] and j >= chord_prob2.shape[0]:
             break
 
-    # Расчёт вывода на основе выхода классификатора и секвенсоров
-    change1, change2 = seq1[18][25], seq2[18][25]
-
+    # Расчёт выхода на основе выхода классификатора и секвенсоров
     if classified[0] in chord_prob1:
         return classified[0]
     if classified[1] in chord_prob1:
         return classified[1]
     if change2 < change1:
-        return probable[chord_prob2[1]]
+        if last_ch2 == chord_prob2[0]:
+            return [chord_prob2[0]]
+        else:
+            return chord_prob1[0]
     if change1 < change2:
-        return probable[chord_prob1[0]]
-    return probable[0]
+        if last_ch1 == chord_prob1[0]:
+            return [chord_prob1[0]]
+        else:
+            return chord_prob2[0]
 
 # Получение вывода с использованием обратного секвенсора
 def get_backward_pred(seq2, classified):

@@ -7,6 +7,9 @@ from keras.optimizers import RMSprop, Adam
 from imblearn.over_sampling import SMOTE
 from imblearn.combine import SMOTETomek
 from processing.paths import Path
+from sklearn.metrics import confusion_matrix
+import pandas as pd
+from processing import datawork
 
 def train_beat_classifier_model(x, y):
     resample = SMOTE()
@@ -19,6 +22,7 @@ def train_beat_classifier_model(x, y):
     x_train = np.array(np.split(x_train.T, len(x_train), axis=1))
     x_train = x_train.reshape(x_train.shape[0], x_train.shape[1], 1, 1)
     x_test = x_test.reshape(x_test.shape[0], x_test.shape[1], 1, 1)
+
     input_shape = (x_train.shape[1:])
 
     model = Sequential()
@@ -42,6 +46,10 @@ def train_beat_classifier_model(x, y):
               batch_size=1000,
               validation_data=(x_test, y_test))
     model.summary()
+    y_actu = pd.Series(datawork.get_noncategorical(y_test)[0], name='Actual')
+    y_pred = pd.Series(datawork.get_noncategorical(model.predict(x_test))[0], name='Predicted')
+    df_confusion = pd.crosstab(y_actu, y_pred)
+    print(df_confusion)
     model.save(Path.beatClassifier)
 
 # Базовая нейронная сеть для сиамской сети
@@ -147,7 +155,6 @@ def train_backward_sequencer_model(chords_true, changes, classes_num):
     model.add(LSTM(128))
     model.add(Dense(classes_num, activation='softmax'))
     opt = Adam(learning_rate=0.001)
-    sample_weight = compute_sample_weight('balanced', y_train)
     model.compile(optimizer=opt, loss='categorical_crossentropy', metrics=["accuracy"])
     model.fit(x_train, y_train,
               epochs=10,
